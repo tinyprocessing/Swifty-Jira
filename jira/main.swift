@@ -1,11 +1,20 @@
-//
-//  main.swift
-//  jira
-//
-//  Created by Mikhail Safir on 07/05/2024.
-//
-
 import Foundation
 
-print("Hello, World!")
+protocol Client {
+    func generateCoolies()
+}
 
+public class Jira: NSObject, Client {
+    func generateCoolies() {
+        print("generation started")
+    }
+
+    override init() {}
+}
+
+func main() {
+    let client = Jira()
+    client.generateCoolies()
+}
+
+main()
