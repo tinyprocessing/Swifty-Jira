@@ -6,7 +6,7 @@ protocol Client {
     func auth() async -> Bool
     func user() async
     func project(key: String) async
-    func issues() async
+    func issues(filter: String) async
     func issue(id: String) async
 }
 

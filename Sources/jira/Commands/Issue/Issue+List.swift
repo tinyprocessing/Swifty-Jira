@@ -10,10 +10,13 @@ extension SwiftyJira.Issue {
         @OptionGroup()
         var options: SwiftyJira.Options
 
+        @Option(name: .long, default: "undone" ,help: "Issue Key")
+        var filter: String
+
         mutating func runAsync() async throws {
             let client = try options.jiraClient()
             if await client.auth() {
-                await client.issues()
+                await client.issues(filter: filter)
             }
         }
     }
