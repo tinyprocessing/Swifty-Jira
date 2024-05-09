@@ -1,15 +1,14 @@
 import ArgumentParser
-import Foundation
+import SwiftyTextTable
 
-extension JiraCLI {
-    struct Issue: AsyncParsableCommand {
+extension SwiftyJira.Issue {
+    struct View: AsyncParsableCommand {
         static var configuration = CommandConfiguration(
-            abstract: "all issues for user",
-            subcommands: [List.self]
+            abstract: "view"
         )
 
         @OptionGroup()
-        var options: JiraCLI.Options
+        var options: SwiftyJira.Options
 
         @Option(name: .long, help: "Issue Key")
         var key: String

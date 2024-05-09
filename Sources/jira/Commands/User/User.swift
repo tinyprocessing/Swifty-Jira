@@ -1,13 +1,13 @@
 import ArgumentParser
 import Foundation
 
-extension JiraCLI {
+extension SwiftyJira {
     struct User: AsyncParsableCommand {
         mutating func runAsync() async throws {}
 
         static var configuration = CommandConfiguration(
             abstract: "information about current user",
-            subcommands: [Information.self]
+            subcommands: [Info.self]
         )
     }
 }

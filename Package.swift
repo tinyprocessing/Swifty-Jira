@@ -4,12 +4,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "SwiftJiraCLI",
+    name: "swifty-jira",
     platforms: [
         .macOS(.v10_15)
     ],
     products: [
-        .executable(name: "jira", targets: ["SwiftJiraCLI"])
+        .executable(name: "swifty-jira", targets: ["SwiftJiraCLI"])
     ],
     dependencies: [
         .package(url: "https://github.com/scottrhoyt/SwiftyTextTable.git", from: "0.5.0"),

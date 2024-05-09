@@ -2,9 +2,9 @@ import ArgumentParser
 import Foundation
 
 extension SwiftyJira {
-    struct Project: AsyncParsableCommand {
+    struct Issue: AsyncParsableCommand {
         static var configuration = CommandConfiguration(
-            abstract: "all projects for user",
+            abstract: "all issues for user",
             subcommands: [View.self, List.self]
         )
 

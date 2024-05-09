@@ -14,9 +14,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "jira"
-               BuildableName = "jira"
-               BlueprintName = "jira"
+               BlueprintIdentifier = "swifty-jira"
+               BuildableName = "swifty-jira"
+               BlueprintName = "swifty-jira"
                ReferencedContainer = "container:">
             </BuildableReference>
          </BuildActionEntry>
@@ -43,34 +43,25 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "jira"
-            BuildableName = "jira"
-            BlueprintName = "jira"
+            BlueprintIdentifier = "swifty-jira"
+            BuildableName = "swifty-jira"
+            BlueprintName = "swifty-jira"
             ReferencedContainer = "container:">
          </BuildableReference>
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "user information --url https://jira.walmart.com"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "help"
+            argument = "user information"
             isEnabled = "YES">
          </CommandLineArgument>
-         <CommandLineArgument
-            argument = "project --key MEM"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "issue list"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "issue view --key MEMW-108"
-            isEnabled = "NO">
-         </CommandLineArgument>
       </CommandLineArguments>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "JIRA_URL"
+            value = "https://jira.walmart.com"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
@@ -82,9 +73,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "jira"
-            BuildableName = "jira"
-            BlueprintName = "jira"
+            BlueprintIdentifier = "swifty-jira"
+            BuildableName = "swifty-jira"
+            BlueprintName = "swifty-jira"
             ReferencedContainer = "container:">
          </BuildableReference>
       </BuildableProductRunnable>

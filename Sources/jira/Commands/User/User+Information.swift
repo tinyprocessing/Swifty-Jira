@@ -1,14 +1,14 @@
 import ArgumentParser
 import SwiftyTextTable
 
-extension JiraCLI.User {
-    struct Information: AsyncParsableCommand {
+extension SwiftyJira.User {
+    struct Info: AsyncParsableCommand {
         static var configuration = CommandConfiguration(
-            abstract: "information"
+            abstract: "info"
         )
 
         @OptionGroup()
-        var options: JiraCLI.Options
+        var options: SwiftyJira.Options
 
         mutating func runAsync() async throws {
             let client = try options.jiraClient()

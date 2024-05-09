@@ -21,7 +21,7 @@ extension ParsableCommand {
     }
 }
 
-struct JiraCLI: AsyncParsableCommand {
+struct SwiftyJira: AsyncParsableCommand {
     static var configuration = CommandConfiguration(
         abstract: "A jira command line interface",
         subcommands: [User.self, Project.self, Issue.self]
@@ -36,5 +36,8 @@ struct JiraCLI: AsyncParsableCommand {
         }
     }
 
-    mutating func runAsync() async throws {}
+    mutating func runAsync() async throws {
+        let command = try SwiftyJira.parseAsRoot(["help"])
+        try command.run()
+    }
 }

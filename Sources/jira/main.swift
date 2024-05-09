@@ -1,3 +1,3 @@
 import Foundation
 
-await JiraCLI.start()
+await SwiftyJira.start()
