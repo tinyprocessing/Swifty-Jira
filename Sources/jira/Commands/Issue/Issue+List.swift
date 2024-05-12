@@ -10,7 +10,7 @@ extension SwiftyJira.Issue {
         @OptionGroup()
         var options: SwiftyJira.Options
 
-        @Option(name: .long, default: "undone" ,help: "Issue Key")
+        @Option(name: .long, default: "undone", help: "Issue Key")
         var filter: String
 
         mutating func runAsync() async throws {

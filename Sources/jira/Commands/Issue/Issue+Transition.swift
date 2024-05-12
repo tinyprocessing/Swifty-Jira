@@ -16,7 +16,7 @@ extension SwiftyJira.Issue {
         @Option(name: .long, help: "Issue status")
         var status: String
 
-        @Option(name: .long, help: "Issue resolution")
+        @Option(name: .long, default: "", help: "Issue resolution")
         var resolution: String
 
         mutating func runAsync() async throws {

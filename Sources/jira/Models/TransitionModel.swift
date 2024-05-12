@@ -1,12 +1,14 @@
 import Foundation
 
 // MARK: - Transition
+
 struct Transition: Codable {
     let expand: String?
     let transitions: [TransitionElement]?
 }
 
 // MARK: - TransitionElement
+
 struct TransitionElement: Codable {
     let id, name: String?
     let to: To?
@@ -14,12 +16,14 @@ struct TransitionElement: Codable {
 }
 
 // MARK: - Fields
+
 struct TransitionFields: Codable {
     let resolution: TransitionIssuetype?
     let issuetype: TransitionIssuetype?
 }
 
 // MARK: - Issuetype
+
 struct TransitionIssuetype: Codable {
     let issuetypeRequired: Bool?
     let schema: Schema?
@@ -36,6 +40,7 @@ struct TransitionIssuetype: Codable {
 }
 
 // MARK: - AllowedValue
+
 struct AllowedValue: Codable {
     let allowedValueSelf: String?
     let name, id: String?
@@ -47,11 +52,13 @@ struct AllowedValue: Codable {
 }
 
 // MARK: - Schema
+
 struct Schema: Codable {
     let type, system: String?
 }
 
 // MARK: - To
+
 struct To: Codable {
     let toSelf: String?
     let description: String?
@@ -68,6 +75,7 @@ struct To: Codable {
 }
 
 // MARK: - StatusCategory
+
 struct TransitionStatusCategory: Codable {
     let statusCategorySelf: String?
     let id: Int?

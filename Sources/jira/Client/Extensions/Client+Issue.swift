@@ -33,14 +33,15 @@ extension Jira {
 
     func issues(filter: String) async {
         var filter = filter
-        if filter == "undone" {
-            filter = "+AND+status!=Done"
-        } else if filter == "all" {
-           filter = ""
-        }else {
-          filter = "+AND+status=" + filter
+        switch filter {
+        case "undone":
+            filter = "+AND+status!=done"
+        case "all":
+            filter = ""
+        default:
+            filter = "+AND+status=\(filter)"
         }
-        var jql: String = "assignee=currentUser()" + filter
+        let jql = "assignee=currentUser()" + filter
         do {
             let result: Result<SearchIssues, Error> = try await request(configuration: makeRequest("/rest/api/2/search?jql=\(jql)"))
             switch result {
@@ -82,27 +83,26 @@ extension Jira {
                     "comment": [
                         [
                             "add": [
-                                "body": "swifty-jira"
-                            ]
-                        ]
-                    ]
+                                "body": "swifty-jira",
+                            ],
+                        ],
+                    ],
                 ],
                 "transition": [
-                    "id": transition
-                ]
+                    "id": transition,
+                ],
             ]
 
             if !resolution.isEmpty {
                 parameters["fields"] = [
                     "resolution": [
-                        "name": resolution
-                    ]
+                        "name": resolution,
+                    ],
                 ]
             }
 
             let request = makeRequestPOST("/rest/api/2/issue/\(key)/transitions", body: parameters)
-            let (data, response) = try await URLSession.shared.data(for: request)
-            print(String(data: data, encoding: .utf8) ?? "")
+            let (data, _) = try await URLSession.shared.data(for: request)
             await issue(id: key)
         } catch {
             print(error)
@@ -112,37 +112,64 @@ extension Jira {
     func transition(to status: String, key: String, resolution: String) async {
         do {
             let result: Result<Transition, Error> =
-            try await request(configuration: makeRequest("/rest/api/2/issue/\(key)/transitions?expand=transitions.fields"))
+                try await request(configuration: makeRequest("/rest/api/2/issue/\(key)/transitions?expand=transitions.fields"))
             switch result {
             case let .success(response):
                 var transitionValue: String?
                 var resolutionValue: String?
-                response.transitions?.forEach({ transition in
+                response.transitions?.forEach { transition in
                     if (transition.name ?? "").lowercased() == status.lowercased() {
                         print("You selected: \(transition.name ?? ""), with id: \(transition.id ?? "")")
                         if transition.fields?.resolution?.allowedValues?.isEmpty ?? true {
                             transitionValue = transition.id
                             resolutionValue = ""
                         }
-                        transition.fields?.resolution?.allowedValues?.forEach({ value in
+                        transition.fields?.resolution?.allowedValues?.forEach { value in
                             if (value.name ?? "").lowercased() == resolution.lowercased() {
                                 print("With resolution: \(value.id ?? "") -> \(value.name ?? "")")
                                 transitionValue = transition.id
                                 resolutionValue = value.name
                             }
-                        })
+                        }
                     }
-                })
+                }
 
                 if let transitionValue = transitionValue, let resolutionValue = resolutionValue {
                     await makeTransition(key: key,
                                          resolution: resolutionValue,
                                          transition: transitionValue)
                 }
-                break
             case .failure:
                 print("failure")
             }
+        } catch {
+            print(error)
+        }
+    }
+
+    func create(parent: String, summary: String, project: String, assignee: String) async {
+        do {
+            let parameters: [String: Any] = [
+                "fields": [
+                    "summary": summary,
+                    "issuetype": [
+                        "name": "Sub-task",
+                    ],
+                    "parent": [
+                        "key": parent,
+                    ],
+                    "project": [
+                        "key": project,
+                    ],
+                    "assignee": [
+                        "name": assignee
+                    ]
+                ],
+            ]
+            print(parameters)
+            let request = makeRequestPOST("/rest/api/2/issue", body: parameters)
+            let (data, _) = try await URLSession.shared.data(for: request)
+            print(String(data: data, encoding: .utf8) ?? "")
         } catch {
             print(error)
         }

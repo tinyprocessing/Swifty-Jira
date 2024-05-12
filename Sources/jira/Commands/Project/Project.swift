@@ -11,6 +11,9 @@ extension SwiftyJira {
         @OptionGroup()
         var options: SwiftyJira.Options
 
-        mutating func runAsync() async throws {}
+        mutating func runAsync() async throws {
+            let command = try SwiftyJira.Project.parseAsRoot(["help"])
+            try command.run()
+        }
     }
 }
