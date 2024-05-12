@@ -7,6 +7,7 @@ extension Jira {
             let (data, _) = try await session.data(for: configuration)
             return try .success(JSONDecoder().decode(T.self, from: data))
         } catch {
+            print(error)
             return .failure(error)
         }
     }
@@ -16,6 +17,20 @@ extension Jira {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("*/*", forHTTPHeaderField: "accept")
+        return request
+    }
+
+    func makeRequestPOST(_ path: String, body: [String: Any]) -> URLRequest {
+        let url = URL(string: "\(domain)\(path)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if !body.isEmpty {
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: [])
+        }
+
         return request
     }
 }

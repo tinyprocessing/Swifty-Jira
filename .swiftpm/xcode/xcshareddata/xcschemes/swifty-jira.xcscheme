@@ -52,7 +52,15 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "user information"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "issue transition --key MEMW-114 --status done --resolution done"
             isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "issue transition --key MEMW-114 --status Backlog --resolution Other"
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
       <EnvironmentVariables>

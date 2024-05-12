@@ -74,4 +74,77 @@ extension Jira {
             print(error)
         }
     }
+
+    private func makeTransition(key: String, resolution: String, transition: String) async {
+        do {
+            var parameters: [String: Any] = [
+                "update": [
+                    "comment": [
+                        [
+                            "add": [
+                                "body": "swifty-jira"
+                            ]
+                        ]
+                    ]
+                ],
+                "transition": [
+                    "id": transition
+                ]
+            ]
+
+            if !resolution.isEmpty {
+                parameters["fields"] = [
+                    "resolution": [
+                        "name": resolution
+                    ]
+                ]
+            }
+
+            let request = makeRequestPOST("/rest/api/2/issue/\(key)/transitions", body: parameters)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            print(String(data: data, encoding: .utf8) ?? "")
+            await issue(id: key)
+        } catch {
+            print(error)
+        }
+    }
+
+    func transition(to status: String, key: String, resolution: String) async {
+        do {
+            let result: Result<Transition, Error> =
+            try await request(configuration: makeRequest("/rest/api/2/issue/\(key)/transitions?expand=transitions.fields"))
+            switch result {
+            case let .success(response):
+                var transitionValue: String?
+                var resolutionValue: String?
+                response.transitions?.forEach({ transition in
+                    if (transition.name ?? "").lowercased() == status.lowercased() {
+                        print("You selected: \(transition.name ?? ""), with id: \(transition.id ?? "")")
+                        if transition.fields?.resolution?.allowedValues?.isEmpty ?? true {
+                            transitionValue = transition.id
+                            resolutionValue = ""
+                        }
+                        transition.fields?.resolution?.allowedValues?.forEach({ value in
+                            if (value.name ?? "").lowercased() == resolution.lowercased() {
+                                print("With resolution: \(value.id ?? "") -> \(value.name ?? "")")
+                                transitionValue = transition.id
+                                resolutionValue = value.name
+                            }
+                        })
+                    }
+                })
+
+                if let transitionValue = transitionValue, let resolutionValue = resolutionValue {
+                    await makeTransition(key: key,
+                                         resolution: resolutionValue,
+                                         transition: transitionValue)
+                }
+                break
+            case .failure:
+                print("failure")
+            }
+        } catch {
+            print(error)
+        }
+    }
 }
