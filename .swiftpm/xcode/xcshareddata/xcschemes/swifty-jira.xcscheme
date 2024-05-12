@@ -52,7 +52,7 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "user information"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "issue transition --key MEMW-114 --status done --resolution done"
@@ -60,7 +60,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "issue create --parent MEMW-95 --summary &quot;Export Lottie animations&quot; --project MEMW --assignee vn55z6z"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "issue transition --key MEMW-114 --status Backlog --resolution Other"

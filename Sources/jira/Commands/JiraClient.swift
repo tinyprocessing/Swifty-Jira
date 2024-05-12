@@ -24,7 +24,7 @@ extension ParsableCommand {
 struct SwiftyJira: AsyncParsableCommand {
     static var configuration = CommandConfiguration(
         abstract: "A jira command line interface",
-        subcommands: [User.self, Project.self, Issue.self]
+        subcommands: [User.self, Project.self, Issue.self, Clean.self]
     )
 
     struct Options: ParsableArguments {

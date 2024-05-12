@@ -4,6 +4,15 @@ class CookieManager {
     private let defaultCookieFilePath = FileManager.default.urls(for: .applicationSupportDirectory,
                                                                  in: .userDomainMask).first!.appendingPathComponent("cookies.txt")
 
+    func clean() {
+        do {
+            try FileManager.default.removeItem(at: defaultCookieFilePath)
+            print("File deleted successfully")
+        } catch {
+            print("Error deleting file: $$error)")
+        }
+    }
+
     func saveCookies(_ cookies: [HTTPCookie]) {
         guard let data = try? NSKeyedArchiver.archivedData(withRootObject: cookies, requiringSecureCoding: true) else {
             return

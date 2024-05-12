@@ -162,8 +162,8 @@ extension Jira {
                         "key": project,
                     ],
                     "assignee": [
-                        "name": assignee
-                    ]
+                        "name": assignee,
+                    ],
                 ],
             ]
             print(parameters)
