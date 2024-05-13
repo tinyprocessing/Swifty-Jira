@@ -27,7 +27,7 @@ class CookieManager {
         do {
             let fileAttributes = try FileManager.default.attributesOfItem(atPath: defaultCookieFilePath.path)
             if let modificationDate = fileAttributes[.modificationDate] as? Date,
-               Date().timeIntervalSince(modificationDate) > 7200
+               Date().timeIntervalSince(modificationDate) > 604800
             {
                 try FileManager.default.removeItem(at: defaultCookieFilePath)
                 return []
