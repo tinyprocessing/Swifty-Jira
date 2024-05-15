@@ -17,7 +17,7 @@ extension Jira {
                 let issue = response
                 if let fields: IssueFields = issue.fields {
                     table.addRow(values: [
-                        issue.key ?? "",
+                        title(issue.key ?? "", type: fields.issuetype?.name ?? ""),
                         fields.created?.components(separatedBy: "T").first ?? "",
                         fields.summary ?? "",
                         fields.subtasks?.count ?? "",
@@ -58,7 +58,7 @@ extension Jira {
                         let issue = issues[i]
                         if let fields: IssueFields = issue.fields {
                             table.addRow(values: [
-                                issue.key ?? "",
+                                title(issue.key ?? "", type: fields.issuetype?.name ?? ""),
                                 fields.created?.components(separatedBy: "T").first ?? "",
                                 fields.summary ?? "",
                                 fields.subtasks?.count ?? "",
@@ -173,5 +173,17 @@ extension Jira {
         } catch {
             print(error)
         }
+    }
+    
+    private func title(_ value: String?, type: String?) -> String {
+        if let value = value, let type = type {
+            if type == "Sub-task" {
+                return "\u{001B}[0;32mS \u{001B}[0;0m" + value
+            }
+            if type == "Task" {
+                return "\u{001B}[0;31mT \u{001B}[0;0m" + value
+            }
+        }
+        return ""
     }
 }
