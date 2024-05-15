@@ -19,10 +19,19 @@ extension Jira {
                     table.addRow(values: [
                         title(issue.key ?? "", type: fields.issuetype?.name ?? ""),
                         fields.created?.components(separatedBy: "T").first ?? "",
-                        fields.summary ?? "",
+                        subtitle(fields.summary, parent: fields.parent?.key),
                         fields.subtasks?.count ?? "",
                         fields.status?.name ?? "",
                     ])
+                    if let parent = fields.parent {
+                        table.addRow(values: [
+                            "",
+                            "",
+                            "\u{001B}[0;36mParent: \(parent.key ?? "") \u{001B}[0;0m",
+                            "",
+                            ""
+                        ])
+                    }
                 }
                 print(table.render())
             case .failure:
@@ -60,10 +69,19 @@ extension Jira {
                             table.addRow(values: [
                                 title(issue.key ?? "", type: fields.issuetype?.name ?? ""),
                                 fields.created?.components(separatedBy: "T").first ?? "",
-                                fields.summary ?? "",
+                                subtitle(fields.summary, parent: fields.parent?.key),
                                 fields.subtasks?.count ?? "",
                                 fields.status?.name ?? "",
                             ])
+                            if let parent = fields.parent {
+                                table.addRow(values: [
+                                    "",
+                                    "",
+                                    "\u{001B}[0;36mParent: \(parent.key ?? "") \u{001B}[0;0m",
+                                    "",
+                                    ""
+                                ])
+                            }
                         }
                     }
                 }
@@ -83,7 +101,7 @@ extension Jira {
                     "comment": [
                         [
                             "add": [
-                                "body": "swifty-jira",
+                                "body": key,
                             ],
                         ],
                     ],
@@ -102,7 +120,7 @@ extension Jira {
             }
 
             let request = makeRequestPOST("/rest/api/2/issue/\(key)/transitions", body: parameters)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (_, _) = try await URLSession.shared.data(for: request)
             await issue(id: key)
         } catch {
             print(error)
@@ -174,15 +192,25 @@ extension Jira {
             print(error)
         }
     }
-    
+
     private func title(_ value: String?, type: String?) -> String {
         if let value = value, let type = type {
             if type == "Sub-task" {
-                return "\u{001B}[0;32mS \u{001B}[0;0m" + value
+                return "\u{001B}[0;37mST \u{001B}[0;0m" + value
             }
             if type == "Task" {
                 return "\u{001B}[0;31mT \u{001B}[0;0m" + value
             }
+            if type == "Story" {
+                return "\u{001B}[0;33mS \u{001B}[0;0m" + value
+            }
+        }
+        return (value ?? "")
+    }
+    
+    private func subtitle(_ value: String?, parent: String?) -> String{
+        if let value = value {
+            return value
         }
         return ""
     }
