@@ -201,6 +201,9 @@ extension Jira {
             if type == "Task" {
                 return "\u{001B}[0;31mT \u{001B}[0;0m" + value
             }
+            if type == "Bug" {
+                return "\u{001B}[0;31mB \u{001B}[0;0m" + value
+            }
             if type == "Story" {
                 return "\u{001B}[0;33mS \u{001B}[0;0m" + value
             }
