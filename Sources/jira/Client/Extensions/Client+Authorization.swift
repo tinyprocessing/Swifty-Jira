@@ -4,7 +4,7 @@ import WebKit
 extension Jira {
     func auth() async -> Bool {
         let cookies = cookiesManager.loadCookies() ?? []
-        if cookies.count > 2 {
+        if cookies.count > 3 {
             HTTPCookieStorage.shared.setCookies(cookies, for: URL(string: domain), mainDocumentURL: nil)
             return true
         }
