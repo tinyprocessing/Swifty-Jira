@@ -5,6 +5,7 @@ extension Jira {
         do {
             let session = URLSession.shared
             let (data, _) = try await session.data(for: configuration)
+//            print(String(data: data, encoding: .utf8))
             return try .success(JSONDecoder().decode(T.self, from: data))
         } catch {
             print(error)

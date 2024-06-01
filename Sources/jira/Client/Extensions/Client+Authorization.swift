@@ -27,14 +27,16 @@ extension Jira {
 }
 
 extension Jira: WKNavigationDelegate, WKUIDelegate {
-    public func webView(_ webView: WKWebView, didFinish _: WKNavigation!) {
+    public func webView(_ webView: WKWebView, didFinish naviagtion: WKNavigation!) {
         let cookieStore = webView.configuration.websiteDataStore.httpCookieStore
         cookieStore.getAllCookies { cookies in
             HTTPCookieStorage.shared.setCookies(cookies,
                                                 for: webView.url!,
                                                 mainDocumentURL: nil)
             self.cookiesManager.saveCookies(HTTPCookieStorage.shared.cookies ?? [])
-            self.continuation?.resume(returning: true)
+            if (webView.url?.absoluteString ?? "").contains(self.domain) {
+                self.continuation?.resume(returning: true)
+            }
         }
     }
 
