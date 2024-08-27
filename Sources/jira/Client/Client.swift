@@ -7,7 +7,7 @@ protocol Client {
     func user() async
     func project(key: String) async
     func issues(filter: String) async
-    func issue(id: String) async
+    func issue(id: String, viewInWeb: Bool) async
     func transition(to status: String, key: String, resolution: String) async
     func create(parent: String, summary: String, project: String, assignee: String) async
 }

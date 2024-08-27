@@ -1,8 +1,15 @@
 import Foundation
 import SwiftyTextTable
+import AppKit
 
 extension Jira {
-    func issue(id: String) async {
+    func issue(id: String, viewInWeb: Bool = false) async {
+        guard !viewInWeb else {
+            if let url = URL(string: domain + "/browse/\(id)") {
+                NSWorkspace.shared.open(url)
+            }
+            return
+        }
         do {
             let result: Result<Issue, Error> = try await request(configuration: makeRequest("/rest/api/2/issue/\(id)"))
             switch result {
@@ -47,6 +54,8 @@ extension Jira {
             filter = "+AND+status!=done"
         case "all":
             filter = ""
+        case "openSprints":
+            filter = "+AND+Sprint+in+openSprints()"
         default:
             filter = "+AND+status=\(filter)"
         }

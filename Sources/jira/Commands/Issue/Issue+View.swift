@@ -13,10 +13,13 @@ extension SwiftyJira.Issue {
         @Option(name: .long, help: "Issue Key")
         var key: String
 
+        @Option(name: .long, default: false, help: "View in browser")
+        var viewInWeb: Bool
+
         mutating func runAsync() async throws {
             let client = try options.jiraClient()
             if await client.auth() {
-                await client.issue(id: key)
+                await client.issue(id: key, viewInWeb: viewInWeb)
             }
         }
     }
