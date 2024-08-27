@@ -75,13 +75,26 @@ extension Jira {
                     for i in 0 ... issues.count - 1 {
                         let issue = issues[i]
                         if let fields: IssueFields = issue.fields {
+                            let subtitleArray = splitStringIntoChunks(subtitle(fields.summary,
+                                                                               parent: fields.parent?.key))
                             table.addRow(values: [
                                 title(issue.key ?? "", type: fields.issuetype?.name ?? ""),
                                 fields.created?.components(separatedBy: "T").first ?? "",
-                                subtitle(fields.summary, parent: fields.parent?.key),
+                                subtitleArray.first ?? "",
                                 fields.subtasks?.count ?? "",
                                 fields.status?.name ?? "",
                             ])
+                            if subtitleArray.count > 1 {
+                                for i in 1..<subtitleArray.count {
+                                    table.addRow(values: [
+                                        "",
+                                        "",
+                                        subtitleArray[i],
+                                        "",
+                                        ""
+                                    ])
+                                }
+                            }
                             if let parent = fields.parent {
                                 table.addRow(values: [
                                     "",
@@ -225,5 +238,19 @@ extension Jira {
             return value
         }
         return ""
+    }
+
+    private func splitStringIntoChunks(_ input: String, chunkSize: Int = 42) -> [String] {
+        let cleanedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        var chunks: [String] = []
+        var currentIndex = cleanedInput.startIndex
+        while currentIndex < cleanedInput.endIndex {
+            let endIndex = cleanedInput.index(currentIndex, offsetBy: chunkSize, limitedBy: cleanedInput.endIndex) ?? cleanedInput.endIndex
+            let chunk = String(cleanedInput[currentIndex..<endIndex])
+            chunks.append(chunk)
+            currentIndex = endIndex
+        }
+
+        return chunks
     }
 }

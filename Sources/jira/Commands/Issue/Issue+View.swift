@@ -18,6 +18,10 @@ extension SwiftyJira.Issue {
 
         mutating func runAsync() async throws {
             let client = try options.jiraClient()
+            if viewInWeb {
+                await client.issue(id: key, viewInWeb: viewInWeb)
+                return
+            }
             if await client.auth() {
                 await client.issue(id: key, viewInWeb: viewInWeb)
             }
