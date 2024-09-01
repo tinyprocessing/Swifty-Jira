@@ -21,10 +21,10 @@ extension Jira {
         return request
     }
 
-    func makeRequestPOST(_ path: String, body: [String: Any]) -> URLRequest {
+    func makeRequestCustom(_ path: String, body: [String: Any], httpMethod: String = "POST") -> URLRequest {
         let url = URL(string: "\(domain)\(path)")!
         var request = URLRequest(url: url)
-        request.httpMethod = "POST"
+        request.httpMethod = httpMethod
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
