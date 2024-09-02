@@ -7,18 +7,18 @@ extension Jira {
                 "fields": [
                     "summary": summary,
                     "issuetype": [
-                        "name": "Sub-task",
+                        "name": "Sub-task"
                     ],
                     "parent": [
-                        "key": parent,
+                        "key": parent
                     ],
                     "project": [
-                        "key": project,
+                        "key": project
                     ],
                     "assignee": [
-                        "name": assignee,
-                    ],
-                ],
+                        "name": assignee
+                    ]
+                ]
             ]
             print(parameters)
             let request = makeRequestCustom("/rest/api/2/issue", body: parameters)

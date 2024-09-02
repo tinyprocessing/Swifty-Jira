@@ -1,6 +1,6 @@
+import AppKit
 import Foundation
 import SwiftyTextTable
-import AppKit
 
 extension Jira {
     func issue(id: String, viewInWeb: Bool = false) async {
@@ -13,13 +13,13 @@ extension Jira {
         do {
             let result: Result<Issue, Error> = try await request(configuration: makeRequest("/rest/api/2/issue/\(id)"))
             switch result {
-            case let .success(response):
+            case .success(let response):
                 var table = TextTable(columns: [
                     TextTableColumn(header: "Key"),
                     TextTableColumn(header: "Created"),
                     TextTableColumn(header: "Summary"),
                     TextTableColumn(header: "Subtasks"),
-                    TextTableColumn(header: "Status"),
+                    TextTableColumn(header: "Status")
                 ], header: "Issue \(response.key ?? "") -> \(response.fields?.assignee?.displayName ?? "")")
                 let issue = response
                 printIssue(issue: issue, table: &table)
@@ -47,7 +47,7 @@ extension Jira {
                 fields.created?.components(separatedBy: "T").first ?? "",
                 subtitleArray.first ?? "",
                 fields.subtasks?.count ?? "",
-                fields.status?.name ?? "",
+                fields.status?.name ?? ""
             ])
             if subtitleArray.count > 1 {
                 for i in 1..<subtitleArray.count {
@@ -79,7 +79,8 @@ extension Jira {
         case "undone":
             filter = "+AND+status!=done"
         case "backlog":
-            filter = "+AND+project=*MEM*+AND+(sprint+is+EMPTY+OR+Sprint+not+in+(openSprints(),+futureSprints()))+AND+resolution+=+Unresolved+and+status+!=+Closed"
+            filter =
+                "+AND+project=*MEM*+AND+(sprint+is+EMPTY+OR+Sprint+not+in+(openSprints(),+futureSprints()))+AND+resolution+=+Unresolved+and+status+!=+Closed"
         case "all":
             filter = ""
         case "openSprints":
@@ -89,18 +90,19 @@ extension Jira {
         }
         let jql = "assignee=currentUser()" + filter
         do {
-            let result: Result<SearchIssues, Error> = try await request(configuration: makeRequest("/rest/api/2/search?jql=\(jql)"))
+            let result: Result<SearchIssues, Error> =
+                try await request(configuration: makeRequest("/rest/api/2/search?jql=\(jql)"))
             switch result {
-            case let .success(response):
+            case .success(let response):
                 var table = TextTable(columns: [
                     TextTableColumn(header: "Key"),
                     TextTableColumn(header: "Created"),
                     TextTableColumn(header: "Summary"),
                     TextTableColumn(header: "Subtasks"),
-                    TextTableColumn(header: "Status"),
+                    TextTableColumn(header: "Status")
                 ], header: "Issues for user")
                 if let issues: [Issue] = response.issues {
-                    for i in 0 ... issues.count - 1 {
+                    for i in 0...issues.count - 1 {
                         let issue = issues[i]
                         printIssue(issue: issue, table: &table)
                     }
@@ -131,8 +133,8 @@ extension Jira {
         }
         return (value ?? "")
     }
-    
-    private func subtitle(_ value: String?) -> String{
+
+    private func subtitle(_ value: String?) -> String {
         if let value = value {
             return value
         }
@@ -144,7 +146,8 @@ extension Jira {
         var chunks: [String] = []
         var currentIndex = cleanedInput.startIndex
         while currentIndex < cleanedInput.endIndex {
-            let endIndex = cleanedInput.index(currentIndex, offsetBy: chunkSize, limitedBy: cleanedInput.endIndex) ?? cleanedInput.endIndex
+            let endIndex = cleanedInput
+                .index(currentIndex, offsetBy: chunkSize, limitedBy: cleanedInput.endIndex) ?? cleanedInput.endIndex
             let chunk = String(cleanedInput[currentIndex..<endIndex])
             chunks.append(chunk)
             currentIndex = endIndex

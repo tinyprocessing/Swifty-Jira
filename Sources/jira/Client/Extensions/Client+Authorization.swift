@@ -40,7 +40,11 @@ extension Jira: WKNavigationDelegate, WKUIDelegate {
         }
     }
 
-    public func webView(_: WKWebView, decidePolicyFor _: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+    public func webView(
+        _: WKWebView,
+        decidePolicyFor _: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
         decisionHandler(.allow)
     }
 }

@@ -1,8 +1,10 @@
 import Foundation
 
 class CookieManager {
-    private let defaultCookieFilePath = FileManager.default.urls(for: .applicationSupportDirectory,
-                                                                 in: .userDomainMask).first!.appendingPathComponent("cookies.txt")
+    private let defaultCookieFilePath = FileManager.default.urls(
+        for: .applicationSupportDirectory,
+        in: .userDomainMask
+    ).first!.appendingPathComponent("cookies.txt")
 
     func clean() {
         do {
@@ -27,8 +29,7 @@ class CookieManager {
         do {
             let fileAttributes = try FileManager.default.attributesOfItem(atPath: defaultCookieFilePath.path)
             if let modificationDate = fileAttributes[.modificationDate] as? Date,
-               Date().timeIntervalSince(modificationDate) > 604800
-            {
+               Date().timeIntervalSince(modificationDate) > 604_800 {
                 try FileManager.default.removeItem(at: defaultCookieFilePath)
                 return []
             }

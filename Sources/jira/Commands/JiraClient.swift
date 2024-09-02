@@ -28,7 +28,11 @@ struct SwiftyJira: AsyncParsableCommand {
     )
 
     struct Options: ParsableArguments {
-        @Option(name: .long, default: ProcessInfo.processInfo.environment["JIRA_URL"], help: "Jira URL, for example: https://your_jira_url.com")
+        @Option(
+            name: .long,
+            default: ProcessInfo.processInfo.environment["JIRA_URL"],
+            help: "Jira URL, for example: https://your_jira_url.com"
+        )
         var url: String
 
         func jiraClient() throws -> Jira {

@@ -6,18 +6,18 @@ extension Jira {
         do {
             let result: Result<UserModel, Error> = try await request(configuration: makeRequest("/rest/api/2/myself"))
             switch result {
-            case let .success(response):
+            case .success(let response):
                 var table = TextTable(columns: [
                     TextTableColumn(header: "Mail"),
                     TextTableColumn(header: "Login"),
                     TextTableColumn(header: "Active"),
-                    TextTableColumn(header: "Key"),
+                    TextTableColumn(header: "Key")
                 ], header: "User information")
                 table.addRow(values: [
                     response.emailAddress ?? "",
                     response.name ?? "",
                     response.active ?? false,
-                    response.key ?? "",
+                    response.key ?? ""
                 ])
                 print(table.render())
             case .failure:

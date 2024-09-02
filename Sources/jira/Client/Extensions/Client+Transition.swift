@@ -8,26 +8,26 @@ extension Jira {
                     "comment": [
                         [
                             "add": [
-                                "body": key,
-                            ],
-                        ],
-                    ],
+                                "body": key
+                            ]
+                        ]
+                    ]
                 ],
                 "transition": [
-                    "id": transition,
-                ],
+                    "id": transition
+                ]
             ]
 
             if !resolution.isEmpty {
                 parameters["fields"] = [
                     "resolution": [
-                        "name": resolution,
-                    ],
+                        "name": resolution
+                    ]
                 ]
             }
 
             let request = makeRequestCustom("/rest/api/2/issue/\(key)/transitions", body: parameters)
-            let (_, _) = try await URLSession.shared.data(for: request)
+            let _ = try await URLSession.shared.data(for: request)
             await issue(id: key)
         } catch {
             print(error)
@@ -36,17 +36,20 @@ extension Jira {
 
     func transitionFields(key: String, verbose: Bool = false) async -> Result<Transition, Error> {
         do {
-            let result: Result<Transition, Error> = try await request(configuration: makeRequest("/rest/api/2/issue/\(key)/transitions?expand=transitions.fields"))
+            let result: Result<Transition, Error> =
+                try await request(
+                    configuration: makeRequest("/rest/api/2/issue/\(key)/transitions?expand=transitions.fields")
+                )
             if verbose {
                 switch result {
-                case let .success(response):
+                case .success(let response):
                     response.transitions?.forEach {
-                        print($0.name ?? ""," id: ", $0.id ?? "")
+                        print($0.name ?? "", " id: ", $0.id ?? "")
                         if let fields = $0.fields, let resolution = fields.resolution {
                             print("Resulution:")
-                            resolution.allowedValues?.forEach({ value in
+                            resolution.allowedValues?.forEach { value in
                                 print("    ", value.name ?? "", value.id ?? "")
-                            })
+                            }
                         }
                     }
                 default:
@@ -62,7 +65,7 @@ extension Jira {
     func transition(to status: String, key: String, resolution: String) async {
         do {
             switch await transitionFields(key: key) {
-            case let .success(response):
+            case .success(let response):
                 var transitionValue: String?
                 var resolutionValue: String?
                 response.transitions?.forEach { transition in

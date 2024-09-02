@@ -11,7 +11,7 @@ extension SwiftyJira {
         var options: SwiftyJira.Options
 
         mutating func runAsync() async throws {
-            let manager: CookieManager = CookieManager()
+            let manager = CookieManager()
             manager.saveCookies([])
             manager.clean()
         }
