@@ -52,6 +52,10 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "user info"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "issue view --key MEM-3621 --view-in-web true"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
