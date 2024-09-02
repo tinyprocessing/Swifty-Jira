@@ -7,7 +7,7 @@ extension Jira {
                 "name": accountId
             ]
             let request = makeRequestCustom("/rest/api/2/issue/\(key)/assignee", body: parameters, httpMethod: "PUT")
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await URLSession.shared.data(for: request)
             print(String(data: data, encoding: .utf8) ?? "")
         } catch {
             print(error)

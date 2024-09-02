@@ -24,6 +24,11 @@ extension Jira {
                 let issue = response
                 printIssue(issue: issue, table: &table)
                 issue.fields?.subtasks?.forEach { printIssue(issue: $0, table: &table) }
+                issue.fields?.issuelinks?.forEach { link in
+                    if let outwardIssue = link.outwardIssue {
+                        printIssue(issue: outwardIssue, table: &table)
+                    }
+                }
                 print(table.render())
             case .failure:
                 break
@@ -33,7 +38,10 @@ extension Jira {
 
     private func printIssue(issue: Issue, table: inout TextTable) {
         if let fields: IssueFields = issue.fields {
-            let subtitleArray = splitStringIntoChunks(subtitle(fields.summary))
+            var subtitleArray = splitStringIntoChunks(subtitle(fields.summary))
+            if let nameAssignee = fields.assignee?.displayName {
+                subtitleArray.append("\u{001B}[0;36mAssignee: \(nameAssignee) \u{001B}[0;0m")
+            }
             table.addRow(values: [
                 title(issue.key ?? "", type: fields.issuetype?.name ?? ""),
                 fields.created?.components(separatedBy: "T").first ?? "",
@@ -61,6 +69,7 @@ extension Jira {
                     ""
                 ])
             }
+            table.addRow(values: [])
         }
     }
 
@@ -69,6 +78,8 @@ extension Jira {
         switch filter {
         case "undone":
             filter = "+AND+status!=done"
+        case "backlog":
+            filter = "+AND+project=*MEM*+AND+(sprint+is+EMPTY+OR+Sprint+not+in+(openSprints(),+futureSprints()))+AND+resolution+=+Unresolved+and+status+!=+Closed"
         case "all":
             filter = ""
         case "openSprints":

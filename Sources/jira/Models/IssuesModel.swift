@@ -23,13 +23,18 @@ struct Issue: Codable {
     }
 }
 
+struct IssueLinks: Codable {
+    let id: String?
+    let outwardIssue: Issue?
+}
+
 // MARK: - IssueFields
 
 struct IssueFields: Codable {
     let parent: Parent?
     let lastViewed: String?
     let labels: [JSONAny]?
-    let issuelinks: [JSONAny]?
+    let issuelinks: [IssueLinks]?
     let assignee: Assignee?
     let components: [JSONAny]?
     let subtasks: [Issue]?
