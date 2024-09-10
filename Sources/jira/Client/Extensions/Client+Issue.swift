@@ -77,7 +77,7 @@ extension Jira {
         var filter = filter
         switch filter {
         case "undone":
-            filter = "+AND+status!=done"
+            filter = "+AND+status!=Done+AND+status!=%22Dev+Complete%22"
         case "backlog":
             filter =
                 "+AND+project=*MEM*+AND+(sprint+is+EMPTY+OR+Sprint+not+in+(openSprints(),+futureSprints()))+AND+resolution+=+Unresolved+and+status+!=+Closed"
