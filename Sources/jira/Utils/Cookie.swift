@@ -46,7 +46,7 @@ class CookieManager {
                 return nil
             }
 
-            print("we return some cookie", cookies.count)
+            print("Cookies cache", cookies.count)
             return cookies
         } catch {
             return nil
