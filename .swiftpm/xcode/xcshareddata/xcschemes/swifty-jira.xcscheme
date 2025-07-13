@@ -52,11 +52,15 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "user info"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "issue list --filter openSprints"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "issue view --key MEM-3621 --view-in-web true"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "issue transition --key MEMW-114 --status done --resolution done"

@@ -45,8 +45,6 @@ class CookieManager {
             guard let cookies = try NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data) as? [HTTPCookie] else {
                 return nil
             }
-
-            print("Cookies cache", cookies.count)
             return cookies
         } catch {
             return nil

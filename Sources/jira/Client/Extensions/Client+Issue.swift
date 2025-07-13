@@ -102,8 +102,7 @@ extension Jira {
                     TextTableColumn(header: "Status")
                 ], header: "Issues for user")
                 if let issues: [Issue] = response.issues {
-                    for i in 0...issues.count - 1 {
-                        let issue = issues[i]
+                    issues.forEach { issue in
                         printIssue(issue: issue, table: &table)
                     }
                 }

@@ -35,7 +35,7 @@ extension Jira: WKNavigationDelegate, WKUIDelegate {
                                                 mainDocumentURL: nil)
             self.cookiesManager.saveCookies(HTTPCookieStorage.shared.cookies ?? [])
             let verificationString: String = (webView.url?.absoluteString ?? "")
-            if verificationString.contains(self.domain) && !verificationString.contains("return_to") {
+            if verificationString.contains(self.domain) && !verificationString.contains("Dashboard.jspa") {
                 self.continuation?.resume(returning: true)
             }
         }
