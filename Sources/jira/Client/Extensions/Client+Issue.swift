@@ -85,6 +85,8 @@ extension Jira {
             filter = ""
         case "openSprints":
             filter = "+AND+Sprint+in+openSprints()"
+        case "openAndFutureSprints":
+            filter = "+AND+(Sprint+in+openSprints()+OR+Sprint+in+futureSprints())"
         default:
             filter = "+AND+status=\(filter)"
         }

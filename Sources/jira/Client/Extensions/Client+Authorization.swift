@@ -3,11 +3,11 @@ import WebKit
 
 extension Jira {
     func auth() async -> Bool {
-        let cookies = cookiesManager.loadCookies() ?? []
-        if cookies.count > 3 {
-            HTTPCookieStorage.shared.setCookies(cookies, for: URL(string: domain), mainDocumentURL: nil)
-            return true
-        }
+//        let cookies = cookiesManager.loadCookies() ?? []
+//        if cookies.count > 3 {
+//            HTTPCookieStorage.shared.setCookies(cookies, for: URL(string: domain), mainDocumentURL: nil)
+//            return true
+//        }
         return await withCheckedContinuation { [self] continuation in
             self.continuation = continuation
             sso()
@@ -35,8 +35,14 @@ extension Jira: WKNavigationDelegate, WKUIDelegate {
                                                 mainDocumentURL: nil)
             self.cookiesManager.saveCookies(HTTPCookieStorage.shared.cookies ?? [])
             let verificationString: String = (webView.url?.absoluteString ?? "")
-            if verificationString.contains(self.domain) && !verificationString.contains("Dashboard.jspa") {
+            print(verificationString)
+            if verificationString.contains("RapidBoard.jspa") {
                 self.continuation?.resume(returning: true)
+                return
+            }
+            if verificationString.contains("Dashboard.jspa") {
+                self.continuation?.resume(returning: true)
+                return
             }
         }
     }
