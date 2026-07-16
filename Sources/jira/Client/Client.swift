@@ -6,10 +6,14 @@ protocol Client {
     func auth() async -> Bool
     func user() async
     func project(key: String) async
-    func issues(filter: String) async
+    func issues(filter: String, customJQL: String?, asJSON: Bool) async
     func issue(id: String, viewInWeb: Bool) async
     func transition(to status: String, key: String, resolution: String) async
-    func create(parent: String, summary: String, project: String, assignee: String) async
+    func create(parent: String, summary: String, project: String, assignee: String, issueType: String, description: String, fieldsJSON: String?, sprintTarget: Jira.SprintTarget) async
+    func exportIssue(key: String) async
+    func addComment(key: String, body: String) async
+    func updateIssue(key: String, summary: String?, description: String?) async
+    func exportContext(projectKey: String?) async
 }
 
 public class Jira: NSObject, Client {

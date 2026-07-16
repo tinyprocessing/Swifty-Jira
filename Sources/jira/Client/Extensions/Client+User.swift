@@ -1,5 +1,4 @@
 import Foundation
-import SwiftyTextTable
 
 extension Jira {
     func user() async {
@@ -7,22 +6,24 @@ extension Jira {
             let result: Result<UserModel, Error> = try await request(configuration: makeRequest("/rest/api/2/myself"))
             switch result {
             case .success(let response):
-                var table = TextTable(columns: [
-                    TextTableColumn(header: "Mail"),
-                    TextTableColumn(header: "Login"),
-                    TextTableColumn(header: "Active"),
-                    TextTableColumn(header: "Key")
-                ], header: "User information")
-                table.addRow(values: [
+                var table = Table(title: "User information", columns: [
+                    Table.Column("Mail"),
+                    Table.Column("Login", width: 14),
+                    Table.Column("Active", width: 6),
+                    Table.Column("Key", width: 16)
+                ])
+                table.addRow([
                     response.emailAddress ?? "",
                     response.name ?? "",
-                    response.active ?? false,
+                    "\(response.active ?? false)",
                     response.key ?? ""
                 ])
                 print(table.render())
-            case .failure:
-                break
+            case .failure(let error):
+                fputs("Failed to fetch user: \(error)\n", stderr)
             }
-        } catch {}
+        } catch {
+            fputs("Error: \(error)\n", stderr)
+        }
     }
 }

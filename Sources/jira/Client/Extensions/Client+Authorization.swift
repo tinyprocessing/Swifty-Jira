@@ -3,11 +3,17 @@ import WebKit
 
 extension Jira {
     func auth() async -> Bool {
-//        let cookies = cookiesManager.loadCookies() ?? []
-//        if cookies.count > 3 {
-//            HTTPCookieStorage.shared.setCookies(cookies, for: URL(string: domain), mainDocumentURL: nil)
-//            return true
-//        }
+        let cookies = cookiesManager.loadCookies() ?? []
+        if cookies.count > 3 {
+            HTTPCookieStorage.shared.setCookies(cookies, for: URL(string: domain), mainDocumentURL: nil)
+            return true
+        }
+        // Fail fast in non-interactive mode (e.g. invoked by Claude/scripts):
+        // opening a WebKit window would hang forever with no display.
+        if ProcessInfo.processInfo.environment["SWIFTY_JIRA_NONINTERACTIVE"] != nil {
+            fputs("Not authenticated (no valid cached session). Run `swifty-jira user info` in a terminal to log in, then retry.\n", stderr)
+            exit(2)
+        }
         return await withCheckedContinuation { [self] continuation in
             self.continuation = continuation
             sso()
@@ -35,7 +41,7 @@ extension Jira: WKNavigationDelegate, WKUIDelegate {
                                                 mainDocumentURL: nil)
             self.cookiesManager.saveCookies(HTTPCookieStorage.shared.cookies ?? [])
             let verificationString: String = (webView.url?.absoluteString ?? "")
-            print(verificationString)
+            fputs("[auth] \(verificationString)\n", stderr)
             if verificationString.contains("RapidBoard.jspa") {
                 self.continuation?.resume(returning: true)
                 return

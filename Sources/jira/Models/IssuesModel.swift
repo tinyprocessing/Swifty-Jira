@@ -23,8 +23,17 @@ struct Issue: Codable {
     }
 }
 
+struct IssueLinkType: Codable {
+    let id: String?
+    let name: String?
+    let inward: String?
+    let outward: String?
+}
+
 struct IssueLinks: Codable {
     let id: String?
+    let type: IssueLinkType?
+    let inwardIssue: Issue?
     let outwardIssue: Issue?
 }
 
@@ -46,12 +55,14 @@ struct IssueFields: Codable {
     let watches: Watches?
     let updated: String?
     let summary: String?
+    let description: String?
     let priority: Priority?
     let status: Status?
     let creator: Assignee?
     let aggregateprogress: Progress?
     let workratio: Int?
     let created: String?
+    let comment: CommentContainer?
 
     enum CodingKeys: String, CodingKey {
         case parent
@@ -67,13 +78,32 @@ struct IssueFields: Codable {
         case watches
         case updated
         case summary
+        case description
         case priority
         case status
         case creator
         case aggregateprogress
         case workratio
         case created
+        case comment
     }
+}
+
+// MARK: - CommentContainer
+
+struct CommentContainer: Codable {
+    let comments: [Comment]?
+    let total: Int?
+}
+
+// MARK: - Comment
+
+struct Comment: Codable {
+    let id: String?
+    let author: Assignee?
+    let body: String?
+    let created: String?
+    let updated: String?
 }
 
 // MARK: - Progress

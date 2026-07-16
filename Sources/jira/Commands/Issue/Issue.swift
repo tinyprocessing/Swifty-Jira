@@ -5,7 +5,7 @@ extension SwiftyJira {
     struct Issue: AsyncParsableCommand {
         static var configuration = CommandConfiguration(
             abstract: "all issues for user",
-            subcommands: [View.self, List.self, Transition.self, Create.self, Assignee.self]
+            subcommands: [View.self, List.self, Transition.self, Create.self, Clone.self, Assignee.self, Export.self, AddComment.self, Update.self, CreateMeta.self]
         )
 
         @OptionGroup()

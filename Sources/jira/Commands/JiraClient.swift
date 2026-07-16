@@ -23,8 +23,19 @@ extension ParsableCommand {
 
 struct SwiftyJira: AsyncParsableCommand {
     static var configuration = CommandConfiguration(
-        abstract: "A jira command line interface",
-        subcommands: [User.self, Project.self, Issue.self, Clean.self]
+        abstract: "A Jira command line client with SSO auth.",
+        discussion: """
+        Human output is rendered as terminal tables; add --enable-json (where \
+        available) or use `issue export` / `context` for machine-readable JSON \
+        on stdout. All logs/errors go to stderr.
+
+        For AI agents: run `swifty-jira guide` for a full, self-contained usage \
+        reference, and set SWIFTY_JIRA_NONINTERACTIVE=1 so auth fails fast \
+        instead of opening an SSO browser window.
+
+        Set the Jira server via the JIRA_URL env var or --url.
+        """,
+        subcommands: [User.self, Project.self, Issue.self, Browse.self, Context.self, Guide.self, Clean.self]
     )
 
     struct Options: ParsableArguments {
