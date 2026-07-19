@@ -8,9 +8,10 @@ final class TUIApp {
     private var filter: String
     private var customJQL: String?
 
-    /// Presets cycled by the `f` key. `backlog` is omitted because its JQL is
-    /// project-specific (MEM-only); use `--filter backlog` at launch for that.
-    private static let presets = ["openSprints", "undone", "all", "openAndFutureSprints"]
+    /// User-configurable saved views (the `f` picker). Loaded from disk.
+    private var views: [JiraView]
+    /// Name of the currently active view (shown in the header).
+    private var activeViewName: String
 
     private var allIssues: [Issue] = []
     private var filtered: [Issue] = []
@@ -27,6 +28,22 @@ final class TUIApp {
         self.domain = domain
         self.filter = filter
         self.customJQL = customJQL
+
+        var loaded = ViewStore.load()
+        if let customJQL = customJQL, !customJQL.isEmpty {
+            // Launched with --jql: surface it as an ad-hoc active view.
+            let adhoc = JiraView(name: "Launch JQL", about: "Passed via --jql at launch.", filter: nil, jql: customJQL)
+            loaded.insert(adhoc, at: 0)
+            self.activeViewName = adhoc.name
+        } else if let match = loaded.first(where: { $0.filter == filter && $0.jql == nil }) {
+            self.activeViewName = match.name
+        } else {
+            // Launched with a preset/status not in the saved list — add it.
+            let adhoc = JiraView(name: filter, about: "Launched with --filter \(filter).", filter: filter, jql: nil)
+            loaded.insert(adhoc, at: 0)
+            self.activeViewName = adhoc.name
+        }
+        self.views = loaded
     }
 
     func run() async {
@@ -57,7 +74,7 @@ final class TUIApp {
             case .char("/"):
                 await runFilterPrompt()
             case .char("f"):
-                await cyclePreset()
+                await showViewPicker()
             case .char("o"):
                 openInBrowser()
             case .char("y"):
@@ -73,19 +90,84 @@ final class TUIApp {
         }
     }
 
-    // MARK: - Data
+    // MARK: - Views
 
-    /// Advance to the next server-side preset filter (clears any custom JQL and
-    /// any active text search, then re-fetches).
-    private func cyclePreset() async {
-        customJQL = nil
+    /// Switch to `view`: resolve its filter/JQL, clear any text search, re-fetch.
+    private func applyView(_ view: JiraView) async {
+        let resolved = view.resolved
+        filter = resolved.filter
+        customJQL = resolved.customJQL
+        activeViewName = view.name
         textFilter = ""
-        let currentIndex = TUIApp.presets.firstIndex(of: filter) ?? -1
-        filter = TUIApp.presets[(currentIndex + 1) % TUIApp.presets.count]
-        message = "Filter: \(filter) — loading…"
+        selected = 0
+        scrollOffset = 0
+        message = "\(view.name) — loading…"
         drawList()
         await reload()
         drawList()
+    }
+
+    /// `f` — the view picker: a transparent, configurable list of saved views.
+    /// Each row shows the view name, its explanation and the exact JQL it runs.
+    /// `n` adds a view from a raw JQL, `x` deletes the selected one.
+    private func showViewPicker() async {
+        var pick = views.firstIndex(where: { $0.name == activeViewName }) ?? 0
+        func draw(_ note: String? = nil) {
+            let rows = views.map { view -> (String, String, String) in
+                let r = view.resolved
+                return (view.name, view.about ?? "", Jira.readableJQL(filter: r.filter, customJQL: r.customJQL))
+            }
+            let frame = TUIView.renderViewPicker(views: rows, selected: pick, activeName: activeViewName, note: note)
+            FileHandle.standardOutput.write(frame.data(using: .utf8)!)
+        }
+        draw()
+
+        while true {
+            switch term.readKey() {
+            case .char("q"), .escape, .left:
+                drawList(); return
+            case .up, .char("k"):
+                pick = max(0, pick - 1); draw()
+            case .down, .char("j"):
+                pick = min(views.count - 1, pick + 1); draw()
+            case .enter:
+                guard views.indices.contains(pick) else { drawList(); return }
+                await applyView(views[pick])
+                return
+            case .char("n"):
+                if let created = addViewInteractively() {
+                    views.append(created)
+                    ViewStore.save(views)
+                    pick = views.count - 1
+                    draw("Added “\(created.name)”. Saved to \(ViewStore.path)")
+                } else {
+                    draw()
+                }
+            case .char("x"):
+                guard views.indices.contains(pick), views.count > 1 else {
+                    draw("Can't delete the last remaining view."); break
+                }
+                let removed = views.remove(at: pick)
+                ViewStore.save(views)
+                pick = min(pick, views.count - 1)
+                draw("Deleted “\(removed.name)”.")
+            default:
+                break
+            }
+        }
+    }
+
+    /// Prompts for a name and a JQL query and returns a new view (nil if
+    /// cancelled or empty).
+    private func addViewInteractively() -> JiraView? {
+        guard let name = editText(title: "New view · name", initial: "", multiline: false),
+              !name.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+        guard let jql = editText(title: "New view · JQL (e.g. assignee=currentUser() AND status=\"In Review\")", initial: "", multiline: false),
+              !jql.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+        return JiraView(name: name.trimmingCharacters(in: .whitespaces),
+                        about: "Custom view.",
+                        filter: nil,
+                        jql: jql.trimmingCharacters(in: .whitespaces))
     }
 
     private func reload() async {
@@ -151,9 +233,8 @@ final class TUIApp {
     // MARK: - Screens
 
     private func drawList() {
-        let title = customJQL != nil ? "custom JQL" : filter
         let frame = TUIView.renderList(
-            title: title,
+            title: activeViewName,
             issues: filtered,
             selected: selected,
             scrollOffset: scrollOffset,
@@ -200,7 +281,7 @@ final class TUIApp {
         var input = ""
         while true {
             let frame = TUIView.renderList(
-                title: customJQL != nil ? "custom JQL" : filter,
+                title: activeViewName,
                 issues: filtered,
                 selected: selected,
                 scrollOffset: scrollOffset,

@@ -103,10 +103,10 @@ extension SwiftyJira {
           swifty-jira browse [--filter <preset>] [--jql "<JQL>"]
         Keys: j/k or arrows move, enter=details, e=edit fields (summary,
         description, status, priority, assignee, labels, Epic Link, raw-JSON
-        custom field), f=cycle preset filter
-        (openSprints→undone→all→openAndFutureSprints), / = local text search
-        (kept across refresh), o=open in browser, y=copy link, r=refresh,
-        q/esc=back/quit.
+        custom field), f=views picker (choose/add/delete saved views; each shows
+        its exact JQL; stored in ~/Library/Application Support/
+        swifty-jira-views.json), / = local text search (kept across refresh),
+        o=open in browser, y=copy link, r=refresh, q/esc=back/quit.
 
         ## Other
           swifty-jira user info

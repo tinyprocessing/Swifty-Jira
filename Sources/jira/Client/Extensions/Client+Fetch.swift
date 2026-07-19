@@ -27,6 +27,16 @@ extension Jira {
         return "assignee=currentUser()" + filterPart
     }
 
+    /// A human-readable form of the JQL a filter/JQL resolves to (for the TUI
+    /// view picker). Decodes the URL-encoding `buildJQL` produces.
+    static func readableJQL(filter: String, customJQL: String?) -> String {
+        let raw = buildJQL(filter: filter, customJQL: customJQL)
+        return raw
+            .replacingOccurrences(of: "+", with: " ")
+            .replacingOccurrences(of: "%22", with: "\"")
+            .replacingOccurrences(of: "%20", with: " ")
+    }
+
     /// Returns issues matching a filter/JQL, or nil on failure.
     func fetchIssues(filter: String, customJQL: String? = nil) async -> SearchIssues? {
         let jql = Jira.buildJQL(filter: filter, customJQL: customJQL)

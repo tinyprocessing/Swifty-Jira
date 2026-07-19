@@ -107,7 +107,7 @@ enum TUIView {
         }
 
         // Footer with key hints
-        let hints = " j/k move  enter details  e edit  f preset  / search  o open  y copy link  r refresh  q quit "
+        let hints = " j/k move  enter details  e edit  f views  / search  o open  y copy link  r refresh  q quit "
         out += invert(Terminal.pad(hints, to: width))
         return out
     }
@@ -224,6 +224,49 @@ enum TUIView {
         for _ in shown..<bodyHeight { out += "\n" }
 
         out += "\n" + invert(Terminal.pad(" j/k move   enter apply   esc/q cancel ", to: width))
+        return out
+    }
+
+    /// Render the view picker (`f`). Each row: name, explanation, resolved JQL.
+    static func renderViewPicker(
+        views: [(name: String, about: String, jql: String)],
+        selected: Int,
+        activeName: String,
+        note: String?
+    ) -> String {
+        let width = Terminal.width
+        let height = Terminal.height
+        var out = clear()
+
+        out += invert(bold(Terminal.pad(" Views — choose what to see", to: width))) + "\n\n"
+
+        // Two lines per view: a name row and an indented JQL/about row.
+        var rows: [String] = []
+        for (idx, view) in views.enumerated() {
+            let active = view.name == activeName ? fg(32, " ●") : "  "
+            let head = "\(active) \(bold(view.name))" + (view.about.isEmpty ? "" : dim("  — \(view.about)"))
+            let jql = dim("      \(view.jql)")
+
+            var line1 = Terminal.pad(head, to: width)
+            let line2 = Terminal.pad(jql, to: width)
+            if idx == selected {
+                line1 = invert(Terminal.pad(stripToWidth(head, width), to: width))
+            }
+            rows.append(line1)
+            rows.append(line2)
+        }
+
+        let bodyHeight = max(3, height - 4)
+        if rows.count > bodyHeight { rows = Array(rows.prefix(bodyHeight)) }
+        for row in rows { out += row + "\n" }
+        for _ in rows.count..<bodyHeight { out += "\n" }
+
+        if let note = note {
+            out += dim(Terminal.pad("  \(note)", to: width)) + "\n"
+        } else {
+            out += "\n"
+        }
+        out += invert(Terminal.pad(" j/k move   enter apply   n new   x delete   esc/q cancel ", to: width))
         return out
     }
 
