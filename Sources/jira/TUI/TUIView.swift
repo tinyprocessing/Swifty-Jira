@@ -37,14 +37,16 @@ enum TUIView {
         selected: Int,
         scrollOffset: Int,
         filterInput: String?,
-        message: String?
+        message: String?,
+        countLabel: String? = nil
     ) -> String {
         let width = Terminal.width
         let height = Terminal.height
         var out = clear()
 
         // Header bar
-        let header = " swifty-jira  •  \(title)  •  \(issues.count) issues "
+        let count = countLabel ?? "\(issues.count) issues"
+        let header = " swifty-jira  •  \(title)  •  \(count) "
         out += invert(bold(Terminal.pad(header, to: width))) + "\n"
 
         // Body rows. Each issue may occupy up to two lines: a long summary wraps

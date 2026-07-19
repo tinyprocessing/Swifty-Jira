@@ -24,7 +24,10 @@ extension Jira {
         default:
             filterPart = "+AND+status=\(filterPart)"
         }
-        return "assignee=currentUser()" + filterPart
+        // Deterministic ordering so a truncated result set is the most recent
+        // work, not an arbitrary slice. Custom JQL is left untouched (it may
+        // carry its own ORDER BY).
+        return "assignee=currentUser()" + filterPart + "+ORDER+BY+updated+DESC"
     }
 
     /// A human-readable form of the JQL a filter/JQL resolves to (for the TUI
@@ -38,10 +41,10 @@ extension Jira {
     }
 
     /// Returns issues matching a filter/JQL, or nil on failure.
-    func fetchIssues(filter: String, customJQL: String? = nil) async -> SearchIssues? {
+    func fetchIssues(filter: String, customJQL: String? = nil, maxResults: Int = 200) async -> SearchIssues? {
         let jql = Jira.buildJQL(filter: filter, customJQL: customJQL)
         let result: Result<SearchIssues, Error> =
-            (try? await request(configuration: makeRequest("/rest/api/2/search?jql=\(jql)"))) ?? .failure(NSError())
+            (try? await request(configuration: makeRequest("/rest/api/2/search?jql=\(jql)&maxResults=\(maxResults)"))) ?? .failure(NSError())
         if case .success(let response) = result {
             return response
         }

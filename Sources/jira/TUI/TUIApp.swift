@@ -15,6 +15,8 @@ final class TUIApp {
 
     private var allIssues: [Issue] = []
     private var filtered: [Issue] = []
+    /// Total matches reported by the server (may exceed what was fetched).
+    private var serverTotal = 0
     /// Active local text search; persisted so a refresh keeps the same view.
     private var textFilter = ""
     private var selected = 0
@@ -173,6 +175,7 @@ final class TUIApp {
     private func reload() async {
         if let response = await client.fetchIssues(filter: filter, customJQL: customJQL) {
             allIssues = response.issues ?? []
+            serverTotal = response.total ?? allIssues.count
             // Re-apply any active text search so a refresh keeps the same view.
             applyTextFilter(textFilter, resetSelection: false)
             message = nil
@@ -232,6 +235,17 @@ final class TUIApp {
 
     // MARK: - Screens
 
+    /// Header count: reflects text-search matches and any server-side truncation.
+    private func countLabel() -> String {
+        if !textFilter.isEmpty {
+            return "\(filtered.count)/\(allIssues.count) matched"
+        }
+        if serverTotal > allIssues.count {
+            return "\(allIssues.count) of \(serverTotal) (truncated)"
+        }
+        return "\(allIssues.count) issues"
+    }
+
     private func drawList() {
         let frame = TUIView.renderList(
             title: activeViewName,
@@ -239,7 +253,8 @@ final class TUIApp {
             selected: selected,
             scrollOffset: scrollOffset,
             filterInput: nil,
-            message: message
+            message: message,
+            countLabel: countLabel()
         )
         FileHandle.standardOutput.write(frame.data(using: .utf8)!)
     }
@@ -286,7 +301,8 @@ final class TUIApp {
                 selected: selected,
                 scrollOffset: scrollOffset,
                 filterInput: input,
-                message: nil
+                message: nil,
+                countLabel: countLabel()
             )
             FileHandle.standardOutput.write(frame.data(using: .utf8)!)
 
