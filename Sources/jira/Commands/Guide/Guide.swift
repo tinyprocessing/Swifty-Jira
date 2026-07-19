@@ -101,10 +101,12 @@ extension SwiftyJira {
 
         ## Interactive browser (human use; not for agents — needs a TTY)
           swifty-jira browse [--filter <preset>] [--jql "<JQL>"]
-        Keys: j/k or arrows move, enter=details, f=cycle preset filter
-        (openSprints→undone→all→openAndFutureSprints), / = local text search,
-        o=open in browser, y=copy link, c=copy `issue export` command (paste to
-        Claude for full context), r=refresh, q/esc=back/quit.
+        Keys: j/k or arrows move, enter=details, e=edit fields (summary,
+        description, status, priority, assignee, labels, Epic Link, raw-JSON
+        custom field), f=cycle preset filter
+        (openSprints→undone→all→openAndFutureSprints), / = local text search
+        (kept across refresh), o=open in browser, y=copy link, r=refresh,
+        q/esc=back/quit.
 
         ## Other
           swifty-jira user info

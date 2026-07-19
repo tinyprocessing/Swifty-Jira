@@ -63,7 +63,7 @@ final class TUIApp {
             case .char("y"):
                 copyLink()
             case .char("e"):
-                await editStatus()
+                await editIssue()
             case .char("r"):
                 message = "Refreshing…"; drawList()
                 await reload(); drawList()
@@ -186,7 +186,7 @@ final class TUIApp {
                 copyToClipboard("\(domain)/browse/\(key)")
                 draw("Copied link: \(domain)/browse/\(key)")
             case .char("e"):
-                await editStatus()
+                await editIssue(key: key)
                 return
             default:
                 break
@@ -260,41 +260,195 @@ final class TUIApp {
 
     // MARK: - Edit
 
-    /// `e` — pick an available transition and move the selected issue to it.
-    private func editStatus() async {
-        guard let key = selectedKey else { return }
-        message = "Loading transitions for \(key)…"; drawList()
-        guard let transitions = await client.fetchTransitions(key: key), !transitions.isEmpty else {
-            message = "No transitions available for \(key)."; drawList(); return
+    /// Jira Server Epic Link custom field. Overridable per instance.
+    private static var epicFieldId: String {
+        ProcessInfo.processInfo.environment["JIRA_EPIC_FIELD"] ?? "customfield_10007"
+    }
+
+    private enum FieldID {
+        case summary, description, status, priority, assignee, labels, epicLink, customJSON
+    }
+
+    private struct EditableField {
+        let id: FieldID
+        let label: String
+        let kind: TUIView.EditKind
+        var value: String
+    }
+
+    /// `e` — full field editor for the selected issue (summary, description,
+    /// status, priority, assignee, labels, Epic Link, plus a raw-JSON escape
+    /// hatch for any other custom field).
+    private func editIssue(key providedKey: String? = nil) async {
+        guard let key = providedKey ?? selectedKey else { return }
+        message = "Loading \(key)…"; drawList()
+        guard let full = await client.fetchIssue(key: key) else {
+            message = "Failed to load \(key)."; drawList(); return
+        }
+        let f = full.fields
+
+        var fields: [EditableField] = [
+            EditableField(id: .summary, label: "Summary", kind: .singleLine, value: f?.summary ?? ""),
+            EditableField(id: .description, label: "Description", kind: .multiLine, value: f?.description ?? ""),
+            EditableField(id: .status, label: "Status", kind: .transition, value: f?.status?.name ?? ""),
+            EditableField(id: .priority, label: "Priority", kind: .singleLine, value: f?.priority?.name ?? ""),
+            EditableField(id: .assignee, label: "Assignee (login)", kind: .singleLine, value: f?.assignee?.name ?? ""),
+            EditableField(id: .labels, label: "Labels (comma-separated)", kind: .singleLine, value: labelsString(f?.labels)),
+            EditableField(id: .epicLink, label: "Epic Link (issue key)", kind: .singleLine, value: ""),
+            EditableField(id: .customJSON, label: "Custom field (raw JSON object)", kind: .json, value: ""),
+        ]
+
+        var sel = 0
+        var note: String?
+        func draw() {
+            let frame = TUIView.renderEditMenu(key: key, fields: fields.map { ($0.label, $0.value, $0.kind) }, selected: sel, note: note)
+            FileHandle.standardOutput.write(frame.data(using: .utf8)!)
+        }
+        draw()
+
+        editLoop: while true {
+            switch term.readKey() {
+            case .char("q"), .escape, .left:
+                break editLoop
+            case .up, .char("k"):
+                sel = max(0, sel - 1); note = nil; draw()
+            case .down, .char("j"):
+                sel = min(fields.count - 1, sel + 1); note = nil; draw()
+            case .enter:
+                let field = fields[sel]
+                switch field.kind {
+                case .transition:
+                    let moved = await pickAndApplyTransition(for: key)
+                    if let refreshed = await client.fetchIssue(key: key) {
+                        fields[sel].value = refreshed.fields?.status?.name ?? field.value
+                    }
+                    note = moved.map { $0 ? "Status changed." : "Status change failed." }
+                    draw()
+                case .singleLine, .json:
+                    if let edited = editText(title: "\(key) · \(field.label)", initial: field.value, multiline: false) {
+                        fields[sel].value = edited
+                        note = await saveField(fields[sel], key: key)
+                    }
+                    draw()
+                case .multiLine:
+                    if let edited = editText(title: "\(key) · \(field.label)", initial: field.value, multiline: true) {
+                        fields[sel].value = edited
+                        note = await saveField(fields[sel], key: key)
+                    }
+                    draw()
+                }
+            default:
+                break
+            }
+        }
+        // A refresh keeps the list in sync with any saved edits.
+        message = "Refreshing…"; drawList()
+        await reload()
+        message = nil
+        drawList()
+    }
+
+    /// Saves one field. Returns a human-readable status note.
+    private func saveField(_ field: EditableField, key: String) async -> String {
+        let v = field.value.trimmingCharacters(in: .whitespacesAndNewlines)
+        var payload: [String: Any] = [:]
+
+        switch field.id {
+        case .summary:
+            payload["summary"] = field.value
+        case .description:
+            payload["description"] = field.value
+        case .priority:
+            guard !v.isEmpty else { return "Priority left unchanged (empty)." }
+            payload["priority"] = ["name": v]
+        case .assignee:
+            payload["assignee"] = v.isEmpty ? NSNull() : ["name": v]
+        case .labels:
+            payload["labels"] = v.split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        case .epicLink:
+            guard !v.isEmpty else { return "Epic Link left unchanged (empty)." }
+            payload[TUIApp.epicFieldId] = v  // bare issue key on Jira Server
+        case .customJSON:
+            guard !v.isEmpty else { return "No JSON entered." }
+            guard let data = v.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: data),
+                  let dict = obj as? [String: Any] else {
+                return "Invalid JSON — expected an object like {\"customfield_X\":…}."
+            }
+            payload = dict
+        case .status:
+            return "Use enter on Status to change it."
         }
 
+        let ok = await client.updateIssueFields(key: key, fields: payload)
+        return ok ? "Saved \(field.label)." : "Failed to save \(field.label) (check value/permissions)."
+    }
+
+    /// Presents the transition picker and applies the choice.
+    /// Returns nil if cancelled, true/false for applied success.
+    private func pickAndApplyTransition(for key: String) async -> Bool? {
+        guard let transitions = await client.fetchTransitions(key: key), !transitions.isEmpty else {
+            return false
+        }
         var pick = 0
         func draw() {
             let frame = TUIView.renderTransitionPicker(key: key, transitions: transitions, selected: pick)
             FileHandle.standardOutput.write(frame.data(using: .utf8)!)
         }
         draw()
-
         while true {
             switch term.readKey() {
             case .char("q"), .escape, .left:
-                message = nil; drawList(); return
+                return nil
             case .up, .char("k"):
                 pick = max(0, pick - 1); draw()
             case .down, .char("j"):
                 pick = min(transitions.count - 1, pick + 1); draw()
             case .enter:
-                let t = transitions[pick]
-                let name = t.name ?? ""
-                message = "Moving \(key) → \(name)…"; drawList()
-                let ok = await client.applyTransition(key: key, transitionId: t.id ?? "")
-                await reload()
-                message = ok ? "Moved \(key) → \(name)." : "Failed to move \(key)."
-                drawList()
-                return
+                return await client.applyTransition(key: key, transitionId: transitions[pick].id ?? "")
             default:
                 break
             }
         }
+    }
+
+    /// A minimal in-place text input. Printable keys append; Backspace deletes.
+    /// In multiline mode, Enter inserts a newline and Ctrl-S saves; otherwise
+    /// Enter saves. Esc cancels (returns nil).
+    private func editText(title: String, initial: String, multiline: Bool) -> String? {
+        var text = initial
+        func draw() {
+            let frame = TUIView.renderTextEditor(title: title, text: text, multiline: multiline)
+            FileHandle.standardOutput.write(frame.data(using: .utf8)!)
+        }
+        draw()
+        while true {
+            switch term.readKey() {
+            case .escape:
+                return nil
+            case .enter:
+                if multiline { text.append("\n"); draw() }
+                else { return text }
+            case .char(let c) where c == "\u{7F}" || c == "\u{08}":
+                if !text.isEmpty { text.removeLast(); draw() }
+            case .char(let c) where c == "\u{13}":  // Ctrl-S
+                if multiline { return text }
+            case .char(let c) where c == "\u{15}":  // Ctrl-U — clear line
+                text = ""; draw()
+            case .char(let c):
+                // Ignore other control chars.
+                if let scalar = c.unicodeScalars.first, scalar.value < 0x20 { break }
+                text.append(c); draw()
+            default:
+                break
+            }
+        }
+    }
+
+    private func labelsString(_ labels: [JSONAny]?) -> String {
+        guard let labels = labels else { return "" }
+        return labels.compactMap { ($0.value as? String) }.joined(separator: ", ")
     }
 }

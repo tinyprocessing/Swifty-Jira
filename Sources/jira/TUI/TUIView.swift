@@ -227,6 +227,93 @@ enum TUIView {
         return out
     }
 
+    /// The kind of input a field uses in the editor.
+    enum EditKind {
+        case singleLine, multiLine, transition, json
+    }
+
+    /// Render the field-editor menu for the `e` action.
+    static func renderEditMenu(
+        key: String,
+        fields: [(label: String, value: String, kind: EditKind)],
+        selected: Int,
+        note: String?
+    ) -> String {
+        let width = Terminal.width
+        let height = Terminal.height
+        var out = clear()
+
+        out += invert(bold(Terminal.pad(" Edit \(key)", to: width))) + "\n\n"
+
+        let labelW = 26
+        for (idx, field) in fields.enumerated() {
+            let marker: String
+            switch field.kind {
+            case .transition: marker = "⇄"
+            case .multiLine:  marker = "¶"
+            case .json:       marker = "{}"
+            case .singleLine: marker = " "
+            }
+            let label = Terminal.pad("\(marker) \(field.label)", to: labelW)
+            // Single-line preview of the current value.
+            let preview = field.value
+                .replacingOccurrences(of: "\n", with: "↵ ")
+                .trimmingCharacters(in: .whitespaces)
+            let valueW = max(10, width - labelW - 4)
+            let shown = preview.isEmpty ? dim("—") : Terminal.pad(preview, to: valueW)
+
+            var line = "  \(label)  \(shown)"
+            if idx == selected {
+                line = invert(Terminal.pad(stripToWidth(line, width), to: width))
+            } else {
+                line = Terminal.pad(line, to: width)
+            }
+            out += line + "\n"
+        }
+
+        // Fill down to just above the footer.
+        let usedRows = 2 + fields.count
+        let footerRows = note != nil ? 3 : 2
+        let fill = max(0, height - usedRows - footerRows)
+        for _ in 0..<fill { out += "\n" }
+
+        if let note = note {
+            out += dim(Terminal.pad("  \(note)", to: width)) + "\n"
+        }
+        out += "\n" + invert(Terminal.pad(" j/k move   enter edit field   esc/q back (saved on edit) ", to: width))
+        return out
+    }
+
+    /// Render the single/multi-line text editor.
+    static func renderTextEditor(title: String, text: String, multiline: Bool) -> String {
+        let width = Terminal.width
+        let height = Terminal.height
+        var out = clear()
+
+        out += invert(bold(Terminal.pad(" \(title)", to: width))) + "\n\n"
+
+        let bodyHeight = max(3, height - 4)
+        // Wrap the current text; show a cursor block at the end.
+        let withCursor = text + "▏"
+        var rendered: [String] = []
+        for rawLine in withCursor.components(separatedBy: "\n") {
+            let chunks = wrapPlain(rawLine, width: width - 2)
+            rendered.append(contentsOf: chunks.isEmpty ? [""] : chunks)
+        }
+        // Keep the tail visible (where the cursor is) if the text overflows.
+        if rendered.count > bodyHeight {
+            rendered = Array(rendered.suffix(bodyHeight))
+        }
+        for line in rendered { out += "  " + Terminal.pad(line, to: width - 2) + "\n" }
+        for _ in rendered.count..<bodyHeight { out += "\n" }
+
+        let hints = multiline
+            ? " type to edit   enter newline   ⌃S save   ⌃U clear   esc cancel "
+            : " type to edit   enter save   ⌃U clear   esc cancel "
+        out += invert(Terminal.pad(hints, to: width))
+        return out
+    }
+
     // MARK: - layout helpers (shared with TUIApp scroll math)
 
     /// Width of the flexible summary column for a given terminal width.

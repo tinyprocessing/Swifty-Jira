@@ -45,6 +45,23 @@ extension Jira {
         }
     }
 
+    /// Updates arbitrary issue fields via PUT (used by the interactive editor).
+    /// `fields` is merged into `{ "fields": … }`. Returns true on HTTP 204.
+    func updateIssueFields(key: String, fields: [String: Any]) async -> Bool {
+        guard !fields.isEmpty else { return true }
+        let parameters: [String: Any] = ["fields": fields]
+        let request = makeRequestCustom("/rest/api/2/issue/\(key)", body: parameters, httpMethod: "PUT")
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse {
+                return (200..<300).contains(http.statusCode)
+            }
+            return false
+        } catch {
+            return false
+        }
+    }
+
     /// Applies a transition by id (no comment, no resolution). Returns true on
     /// an HTTP 2xx response.
     func applyTransition(key: String, transitionId: String) async -> Bool {
