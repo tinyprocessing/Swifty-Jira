@@ -129,11 +129,22 @@ final class TUIApp {
     }
 
     private func adjustScroll() {
+        guard !filtered.isEmpty else { scrollOffset = 0; return }
         let bodyHeight = max(3, Terminal.height - 4)
-        if selected < scrollOffset {
-            scrollOffset = selected
-        } else if selected >= scrollOffset + bodyHeight {
-            scrollOffset = selected - bodyHeight + 1
+        let width = Terminal.width
+
+        if selected < scrollOffset { scrollOffset = selected }
+
+        // Rows can be up to two lines tall (wrapped summaries), so scroll by the
+        // real rendered line count rather than by issue index: advance the offset
+        // until the selected row's lines fit within the body.
+        while scrollOffset < selected {
+            var lines = 0
+            for i in scrollOffset...selected where filtered.indices.contains(i) {
+                lines += TUIView.rowHeight(filtered[i], terminalWidth: width)
+            }
+            if lines <= bodyHeight { break }
+            scrollOffset += 1
         }
     }
 

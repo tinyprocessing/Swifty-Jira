@@ -54,8 +54,7 @@ enum TUIView {
         let keyW = 12, dateW = 10, statusW = 14
         // leading space + badge(2) + space + key + space + [summary] + space + date + space + status
         let indent = 1 + 2 + 1 + keyW + 1
-        let used = indent + 1 + dateW + 1 + statusW
-        let summaryWidth = max(10, width - used)
+        let summaryWidth = summaryWidth(forTerminalWidth: width)
 
         var rows: [String] = []
         build: for (idx, issue) in issues.enumerated().dropFirst(scrollOffset) {
@@ -226,6 +225,25 @@ enum TUIView {
 
         out += "\n" + invert(Terminal.pad(" j/k move   enter apply   esc/q cancel ", to: width))
         return out
+    }
+
+    // MARK: - layout helpers (shared with TUIApp scroll math)
+
+    /// Width of the flexible summary column for a given terminal width.
+    /// Must match the column layout used in `renderList`.
+    static func summaryWidth(forTerminalWidth width: Int) -> Int {
+        let keyW = 12, dateW = 10, statusW = 14
+        let indent = 1 + 2 + 1 + keyW + 1
+        let used = indent + 1 + dateW + 1 + statusW
+        return max(10, width - used)
+    }
+
+    /// Number of screen lines an issue occupies in the list (capped at 2, to
+    /// match the summary-wrap cap in `renderList`).
+    static func rowHeight(_ issue: Issue, terminalWidth width: Int) -> Int {
+        let summary = (issue.fields?.summary ?? "").replacingOccurrences(of: "\n", with: " ")
+        let chunks = wrapPlain(summary, width: summaryWidth(forTerminalWidth: width))
+        return min(2, max(1, chunks.count))
     }
 
     // MARK: - helpers
