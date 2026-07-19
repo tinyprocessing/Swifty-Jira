@@ -47,39 +47,54 @@ enum TUIView {
         let header = " swifty-jira  •  \(title)  •  \(issues.count) issues "
         out += invert(bold(Terminal.pad(header, to: width))) + "\n"
 
-        // Body rows
+        // Body rows. Each issue may occupy up to two lines: a long summary wraps
+        // onto a second, indented line so the created date and status stay visible.
         let bodyHeight = max(3, height - 4) // header + footer + filter line
-        let visible = Array(issues.enumerated())
-            .dropFirst(scrollOffset)
-            .prefix(bodyHeight)
 
-        for (idx, issue) in visible {
+        let keyW = 12, dateW = 10, statusW = 14
+        // leading space + badge(2) + space + key + space + [summary] + space + date + space + status
+        let indent = 1 + 2 + 1 + keyW + 1
+        let used = indent + 1 + dateW + 1 + statusW
+        let summaryWidth = max(10, width - used)
+
+        var rows: [String] = []
+        build: for (idx, issue) in issues.enumerated().dropFirst(scrollOffset) {
             let f = issue.fields
             let key = issue.key ?? "?"
             let type = typeBadge(f?.issuetype?.name ?? "")
             let status = f?.status?.name ?? ""
             let statusStr = fg(statusColor(status), status)
+            let created = f?.created?.components(separatedBy: "T").first ?? ""
             let summary = (f?.summary ?? "").replacingOccurrences(of: "\n", with: " ")
 
-            // Fixed: badge(2) + key(12) + status(14); summary flexible.
-            let keyPad = Terminal.pad(key, to: 12)
-            let statusPad = padVisible(statusStr, to: 14)
-            let used = 2 + 1 + 12 + 1 + 14 + 2 // badge + spaces + margins
-            let summaryWidth = max(10, width - used)
-            let summaryPad = Terminal.pad(summary, to: summaryWidth)
+            let keyPad = Terminal.pad(key, to: keyW)
+            let datePad = Terminal.pad(created, to: dateW)
+            let statusPad = padVisible(statusStr, to: statusW)
 
-            var line = " \(type) \(keyPad) \(summaryPad) \(statusPad)"
-            if idx == selected {
-                line = invert(Terminal.pad(stripToWidth(line, width), to: width))
-            } else {
-                line = Terminal.pad(line, to: width)
+            // Wrap the summary but cap at two lines so the list stays dense.
+            let chunks = Array(wrapPlain(summary, width: summaryWidth).prefix(2))
+            for (ci, chunk) in chunks.enumerated() {
+                if rows.count >= bodyHeight { break build }
+                var line: String
+                if ci == 0 {
+                    let summaryPad = Terminal.pad(chunk, to: summaryWidth)
+                    line = " \(type) \(keyPad) \(summaryPad) \(datePad) \(statusPad)"
+                } else {
+                    let summaryPad = Terminal.pad(chunk, to: summaryWidth)
+                    line = String(repeating: " ", count: indent) + summaryPad
+                }
+                if idx == selected {
+                    line = invert(Terminal.pad(stripToWidth(line, width), to: width))
+                } else {
+                    line = Terminal.pad(line, to: width)
+                }
+                rows.append(line)
             }
-            out += line + "\n"
         }
 
+        for row in rows { out += row + "\n" }
         // Fill remaining body rows
-        let shown = visible.count
-        for _ in shown..<bodyHeight {
+        for _ in rows.count..<bodyHeight {
             out += "\n"
         }
 
@@ -93,7 +108,7 @@ enum TUIView {
         }
 
         // Footer with key hints
-        let hints = " j/k move  enter details  f preset  / search  o open  y copy link  c copy Claude cmd  r refresh  q quit "
+        let hints = " j/k move  enter details  e edit  f preset  / search  o open  y copy link  r refresh  q quit "
         out += invert(Terminal.pad(hints, to: width))
         return out
     }
@@ -181,7 +196,35 @@ enum TUIView {
         if let status = status {
             out += "\n" + fg(32, Terminal.pad(" ✓ \(status)", to: width))
         }
-        out += "\n" + invert(Terminal.pad(" esc/q back   o open   y copy link   c copy `export` command for Claude ", to: width))
+        out += "\n" + invert(Terminal.pad(" esc/q back   e edit   o open   y copy link ", to: width))
+        return out
+    }
+
+    /// Render the transition picker overlay for the `e` (edit) action.
+    static func renderTransitionPicker(key: String, transitions: [TransitionElement], selected: Int) -> String {
+        let width = Terminal.width
+        let height = Terminal.height
+        var out = clear()
+
+        out += invert(bold(Terminal.pad(" Move \(key) to…", to: width))) + "\n\n"
+
+        let bodyHeight = max(3, height - 4)
+        for (idx, t) in transitions.enumerated().prefix(bodyHeight) {
+            let name = t.name ?? "?"
+            let to = t.to?.name.map { " → \($0)" } ?? ""
+            var line = "   \(name)\(to)"
+            if idx == selected {
+                line = invert(Terminal.pad(stripToWidth(line, width), to: width))
+            } else {
+                line = Terminal.pad(line, to: width)
+            }
+            out += line + "\n"
+        }
+
+        let shown = min(transitions.count, bodyHeight)
+        for _ in shown..<bodyHeight { out += "\n" }
+
+        out += "\n" + invert(Terminal.pad(" j/k move   enter apply   esc/q cancel ", to: width))
         return out
     }
 

@@ -14,6 +14,8 @@ final class TUIApp {
 
     private var allIssues: [Issue] = []
     private var filtered: [Issue] = []
+    /// Active local text search; persisted so a refresh keeps the same view.
+    private var textFilter = ""
     private var selected = 0
     private var scrollOffset = 0
     private var message: String?
@@ -60,8 +62,8 @@ final class TUIApp {
                 openInBrowser()
             case .char("y"):
                 copyLink()
-            case .char("c"):
-                copyClaudeCommand()
+            case .char("e"):
+                await editStatus()
             case .char("r"):
                 message = "Refreshing…"; drawList()
                 await reload(); drawList()
@@ -77,6 +79,7 @@ final class TUIApp {
     /// any active text search, then re-fetches).
     private func cyclePreset() async {
         customJQL = nil
+        textFilter = ""
         let currentIndex = TUIApp.presets.firstIndex(of: filter) ?? -1
         filter = TUIApp.presets[(currentIndex + 1) % TUIApp.presets.count]
         message = "Filter: \(filter) — loading…"
@@ -88,7 +91,8 @@ final class TUIApp {
     private func reload() async {
         if let response = await client.fetchIssues(filter: filter, customJQL: customJQL) {
             allIssues = response.issues ?? []
-            filtered = allIssues
+            // Re-apply any active text search so a refresh keeps the same view.
+            applyTextFilter(textFilter, resetSelection: false)
             message = nil
         } else {
             message = "Failed to load issues (session may be stale — run `swifty-jira user info`)."
@@ -97,7 +101,8 @@ final class TUIApp {
         adjustScroll()
     }
 
-    private func applyTextFilter(_ text: String) {
+    private func applyTextFilter(_ text: String, resetSelection: Bool = true) {
+        textFilter = text
         if text.isEmpty {
             filtered = allIssues
         } else {
@@ -108,8 +113,10 @@ final class TUIApp {
                 ($0.fields?.status?.name ?? "").lowercased().contains(q)
             }
         }
-        selected = 0
-        scrollOffset = 0
+        if resetSelection {
+            selected = 0
+            scrollOffset = 0
+        }
     }
 
     // MARK: - Navigation
@@ -167,9 +174,9 @@ final class TUIApp {
             case .char("y"):
                 copyToClipboard("\(domain)/browse/\(key)")
                 draw("Copied link: \(domain)/browse/\(key)")
-            case .char("c"):
-                copyToClipboard("swifty-jira issue export --key \(key)")
-                draw("Copied command: swifty-jira issue export --key \(key)")
+            case .char("e"):
+                await editStatus()
+                return
             default:
                 break
             }
@@ -240,12 +247,43 @@ final class TUIApp {
         drawList()
     }
 
-    /// `c` — copy a ready-to-run command that gives Claude full issue context.
-    private func copyClaudeCommand() {
+    // MARK: - Edit
+
+    /// `e` — pick an available transition and move the selected issue to it.
+    private func editStatus() async {
         guard let key = selectedKey else { return }
-        let cmd = "swifty-jira issue export --key \(key)"
-        copyToClipboard(cmd)
-        message = "Copied command (pipe it to Claude): \(cmd)"
-        drawList()
+        message = "Loading transitions for \(key)…"; drawList()
+        guard let transitions = await client.fetchTransitions(key: key), !transitions.isEmpty else {
+            message = "No transitions available for \(key)."; drawList(); return
+        }
+
+        var pick = 0
+        func draw() {
+            let frame = TUIView.renderTransitionPicker(key: key, transitions: transitions, selected: pick)
+            FileHandle.standardOutput.write(frame.data(using: .utf8)!)
+        }
+        draw()
+
+        while true {
+            switch term.readKey() {
+            case .char("q"), .escape, .left:
+                message = nil; drawList(); return
+            case .up, .char("k"):
+                pick = max(0, pick - 1); draw()
+            case .down, .char("j"):
+                pick = min(transitions.count - 1, pick + 1); draw()
+            case .enter:
+                let t = transitions[pick]
+                let name = t.name ?? ""
+                message = "Moving \(key) → \(name)…"; drawList()
+                let ok = await client.applyTransition(key: key, transitionId: t.id ?? "")
+                await reload()
+                message = ok ? "Moved \(key) → \(name)." : "Failed to move \(key)."
+                drawList()
+                return
+            default:
+                break
+            }
+        }
     }
 }

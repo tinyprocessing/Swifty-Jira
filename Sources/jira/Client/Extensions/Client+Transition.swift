@@ -34,6 +34,34 @@ extension Jira {
         }
     }
 
+    /// Returns the transitions available for an issue (for the interactive TUI),
+    /// or nil on failure.
+    func fetchTransitions(key: String) async -> [TransitionElement]? {
+        switch await transitionFields(key: key) {
+        case .success(let response):
+            return response.transitions
+        case .failure:
+            return nil
+        }
+    }
+
+    /// Applies a transition by id (no comment, no resolution). Returns true on
+    /// an HTTP 2xx response.
+    func applyTransition(key: String, transitionId: String) async -> Bool {
+        guard !transitionId.isEmpty else { return false }
+        let parameters: [String: Any] = ["transition": ["id": transitionId]]
+        let request = makeRequestCustom("/rest/api/2/issue/\(key)/transitions", body: parameters)
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse {
+                return (200..<300).contains(http.statusCode)
+            }
+            return true
+        } catch {
+            return false
+        }
+    }
+
     func transitionFields(key: String, verbose: Bool = false) async -> Result<Transition, Error> {
         do {
             let result: Result<Transition, Error> =
