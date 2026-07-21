@@ -17,7 +17,9 @@ extension SwiftyJira {
         # swifty-jira — agent guide
 
         A Jira CLI. Human commands print tables; agent commands print JSON to stdout.
-        Logs and errors ALWAYS go to stderr — parse stdout only (add 2>/dev/null to silence logs).
+        ALL logs/errors/auth go to stderr — ALWAYS suppress stderr when reading output:
+          SWIFTY_JIRA_NONINTERACTIVE=1 swifty-jira <command> 2>/dev/null
+        `guide` itself needs no auth and no network — it is always safe to run first.
 
         ## Setup / auth
         - Server: set JIRA_URL env var, or pass --url <https://jira.example.com>.
@@ -75,16 +77,17 @@ extension SwiftyJira {
           swifty-jira issue create --project <KEY> --type <Task|Bug|Story|Sub-task> \\
             --summary "<title>" [--description "<text>"] [--assignee <login>] \\
             [--parent <KEY>] [--sprint current|next] \\
-            [--fields-json '{"customfield_XXXXX":<value>, ...}']
-        - Sub-task REQUIRES --parent; Task/Bug/Story do not take a parent.
-        - --sprint current adds to the ACTIVE sprint; --sprint next to the first
-          FUTURE sprint; omit for backlog. (Sprint is set via the agile API AFTER
-          create, not as a field.)
-        - --fields-json merges custom/required fields into the create body. Get the
-          ids from `createmeta` and the value shapes from `export --enable-raw`.
-        - Do NOT set the Sprint customfield directly; use --sprint.
-        - If create returns 400, the error body names the missing/invalid field —
-          fix --fields-json and retry.
+            [--like <EXISTING-KEY>] [--fields-json '{"customfield_XXXXX":<value>, ...}'] \\
+            [--enable-dry-run]
+        - --like <KEY>: inherit required custom fields (Epic Link, Story Type,
+          Application/Service…) from an existing issue. Use this whenever
+          `createmeta` reports opaqueRequiredFields (no allowedValues). The
+          inherited fields are merged before --fields-json (so --fields-json wins).
+        - Sub-task REQUIRES --parent; Task/Bug/Story do not.
+        - --sprint current/next adds to the sprint AFTER create via the agile API.
+          Never set the Sprint customfield directly.
+        - If create returns 400 the error body names the failing field.
+        - --enable-dry-run prints the POST body without creating anything.
         -> JSON on success: { status:"ok", key, url }
 
         ## Update / fill in an issue

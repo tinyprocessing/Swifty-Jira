@@ -41,10 +41,11 @@ extension Jira {
     }
 
     /// Returns issues matching a filter/JQL, or nil on failure.
-    func fetchIssues(filter: String, customJQL: String? = nil, maxResults: Int = 200) async -> SearchIssues? {
+    func fetchIssues(filter: String, customJQL: String? = nil, maxResults: Int = 200, startAt: Int = 0) async -> SearchIssues? {
         let jql = Jira.buildJQL(filter: filter, customJQL: customJQL)
+        let path = "/rest/api/2/search?jql=\(jql)&maxResults=\(maxResults)&startAt=\(startAt)"
         let result: Result<SearchIssues, Error> =
-            (try? await request(configuration: makeRequest("/rest/api/2/search?jql=\(jql)&maxResults=\(maxResults)"))) ?? .failure(NSError())
+            (try? await request(configuration: makeRequest(path))) ?? .failure(NSError())
         if case .success(let response) = result {
             return response
         }

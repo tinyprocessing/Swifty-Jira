@@ -38,7 +38,8 @@ enum TUIView {
         scrollOffset: Int,
         filterInput: String?,
         message: String?,
-        countLabel: String? = nil
+        countLabel: String? = nil,
+        hasMore: Bool = false
     ) -> String {
         let width = Terminal.width
         let height = Terminal.height
@@ -109,8 +110,20 @@ enum TUIView {
         }
 
         // Footer with key hints
-        let hints = " j/k move  enter details  e edit  f views  / search  o open  y copy link  r refresh  q quit "
+        let loadMore = hasMore ? "  L load more  " : ""
+        let hints = " j/k  enter  e edit  f views  / search  o open  y copy  r refresh\(loadMore)  q quit "
         out += invert(Terminal.pad(hints, to: width))
+        return out
+    }
+
+    /// Overlay shown when user presses q — waits for confirmation.
+    static func renderQuitConfirm(over base: String) -> String {
+        let width = Terminal.width
+        // Re-render the base screen then overlay a centered prompt.
+        var out = base
+        let msg = "  Quit swifty-jira? Press q again (or y) to exit, any other key to stay.  "
+        let padded = Terminal.pad(msg, to: width)
+        out += "\n" + invert(bold(fg(31, padded)))
         return out
     }
 

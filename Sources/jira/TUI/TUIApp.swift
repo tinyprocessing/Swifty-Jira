@@ -17,6 +17,9 @@ final class TUIApp {
     private var filtered: [Issue] = []
     /// Total matches reported by the server (may exceed what was fetched).
     private var serverTotal = 0
+    /// How many issues were fetched so far (used for load-more pagination).
+    private var fetchedCount = 0
+    private static let pageSize = 50
     /// Active local text search; persisted so a refresh keeps the same view.
     private var textFilter = ""
     private var selected = 0
@@ -62,7 +65,7 @@ final class TUIApp {
             let key = term.readKey()
             switch key {
             case .char("q"), .escape:
-                break loop
+                if await confirmQuit() { break loop } else { drawList() }
             case .up, .char("k"):
                 moveSelection(-1)
             case .down, .char("j"):
@@ -86,6 +89,8 @@ final class TUIApp {
             case .char("r"):
                 message = "Refreshing…"; drawList()
                 await reload(); drawList()
+            case .char("L"):
+                await loadMore()
             default:
                 break
             }
@@ -173,10 +178,10 @@ final class TUIApp {
     }
 
     private func reload() async {
-        if let response = await client.fetchIssues(filter: filter, customJQL: customJQL) {
+        if let response = await client.fetchIssues(filter: filter, customJQL: customJQL, maxResults: TUIApp.pageSize) {
             allIssues = response.issues ?? []
+            fetchedCount = allIssues.count
             serverTotal = response.total ?? allIssues.count
-            // Re-apply any active text search so a refresh keeps the same view.
             applyTextFilter(textFilter, resetSelection: false)
             message = nil
         } else {
@@ -184,6 +189,59 @@ final class TUIApp {
         }
         selected = min(selected, max(0, filtered.count - 1))
         adjustScroll()
+    }
+
+    /// Fetch the next page and append to the current list.
+    private func loadMore() async {
+        guard fetchedCount < serverTotal else {
+            message = "All \(serverTotal) issues loaded."
+            drawList(); return
+        }
+        message = "Loading more…"; drawList()
+        if let response = await client.fetchIssues(
+            filter: filter, customJQL: customJQL,
+            maxResults: TUIApp.pageSize, startAt: fetchedCount
+        ) {
+            let newIssues = response.issues ?? []
+            allIssues.append(contentsOf: newIssues)
+            fetchedCount = allIssues.count
+            serverTotal = response.total ?? fetchedCount
+            applyTextFilter(textFilter, resetSelection: false)
+            message = newIssues.isEmpty ? "No more issues." : nil
+        } else {
+            message = "Failed to load more."
+        }
+        adjustScroll()
+        drawList()
+    }
+
+    /// Shows a quit-confirmation overlay. Returns true if user confirms exit.
+    /// `q`, `y`, `Y`, Enter → confirm. Any other key → cancel.
+    private func confirmQuit() async -> Bool {
+        // Build and show the confirm overlay on top of the current list frame.
+        let baseFrame = currentListFrame()
+        let frame = TUIView.renderQuitConfirm(over: baseFrame)
+        FileHandle.standardOutput.write(frame.data(using: .utf8)!)
+        let k = term.readKey()
+        switch k {
+        case .char("q"), .char("y"), .char("Y"), .enter:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func currentListFrame() -> String {
+        TUIView.renderList(
+            title: activeViewName,
+            issues: filtered,
+            selected: selected,
+            scrollOffset: scrollOffset,
+            filterInput: nil,
+            message: message,
+            countLabel: countLabel(),
+            hasMore: fetchedCount < serverTotal
+        )
     }
 
     private func applyTextFilter(_ text: String, resetSelection: Bool = true) {
@@ -247,16 +305,7 @@ final class TUIApp {
     }
 
     private func drawList() {
-        let frame = TUIView.renderList(
-            title: activeViewName,
-            issues: filtered,
-            selected: selected,
-            scrollOffset: scrollOffset,
-            filterInput: nil,
-            message: message,
-            countLabel: countLabel()
-        )
-        FileHandle.standardOutput.write(frame.data(using: .utf8)!)
+        FileHandle.standardOutput.write(currentListFrame().data(using: .utf8)!)
     }
 
     private func showDetail() async {

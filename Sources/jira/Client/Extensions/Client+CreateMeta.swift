@@ -78,10 +78,28 @@ extension Jira {
             // Required fields first, then alphabetical.
             infos.sort { ($0.required ? 0 : 1, $0.name) < ($1.required ? 0 : 1, $1.name) }
 
+            // Detect nfeed/opaque fields that have no allowedValues — their
+            // write-shape can only be learned by reading an existing issue.
+            let opaqueRequired = infos.filter {
+                $0.required && $0.allowedValues == nil &&
+                ($0.custom?.contains("nfeed") == true || $0.type == "array" || $0.type == "any")
+            }
+            var hint = "Pass custom fields with --fields-json '{\"id\":value,...}' on `issue create`. "
+                + "Epic Link = bare key string; selects use {\"value\":\"…\"} from allowedValues."
+            if !opaqueRequired.isEmpty {
+                let names = opaqueRequired.map { "\($0.id) (\($0.name))" }.joined(separator: ", ")
+                hint += " WARNING: \(names) \(opaqueRequired.count == 1 ? "has" : "have") no allowedValues "
+                    + "(opaque/nfeed type). To find the exact write-shape, read an existing issue: "
+                    + "`swifty-jira issue export --key <EXISTING-KEY> --enable-raw` and inspect those field IDs. "
+                    + "RECOMMENDED: use `issue clone --from <EXISTING-KEY>` instead of `create` — "
+                    + "it copies these fields verbatim."
+            }
+
             struct Output: Encodable {
                 let project: String
                 let issueType: String
                 let requiredFields: [String]
+                let opaqueRequiredFields: [String]
                 let fields: [FieldInfo]
                 let hint: String
             }
@@ -89,8 +107,9 @@ extension Jira {
                 project: projectKey,
                 issueType: issueType,
                 requiredFields: infos.filter { $0.required }.map { "\($0.id) (\($0.name))" },
+                opaqueRequiredFields: opaqueRequired.map { "\($0.id) (\($0.name))" },
                 fields: infos,
-                hint: "Pass custom fields to `issue create` with repeated --field <id>=<jsonValue>. Epic Link on Jira Server is a bare key string; selects use {\"id\":\"…\"} or {\"value\":\"…\"} from allowedValues."
+                hint: hint
             )
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

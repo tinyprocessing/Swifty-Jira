@@ -4,7 +4,7 @@ import SwiftyTextTable
 extension SwiftyJira.Issue {
     struct Create: AsyncParsableCommand {
         static var configuration = CommandConfiguration(
-            abstract: "Create an issue. Parent is optional (Sub-task only). Use --sprint current|next and --fields-json for custom/required fields (Epic Link, Story Type, etc). Run `issue createmeta` first to see required fields."
+            abstract: "Create an issue. Use --like <KEY> to inherit required custom fields (Epic Link, App/Service, Story Type…) from an existing issue — simplest path for projects with opaque required fields."
         )
 
         @OptionGroup()
@@ -19,7 +19,7 @@ extension SwiftyJira.Issue {
         @Option(name: .long, help: "Project key, e.g. MEM")
         var project: String
 
-        @Option(name: .long, default: "", help: "Assignee login (default: unassigned)")
+        @Option(name: .long, default: "", help: "Assignee login (default: current user)")
         var assignee: String
 
         @Option(name: .long, default: "Task", help: "Issue type: Task | Bug | Story | Sub-task")
@@ -28,11 +28,17 @@ extension SwiftyJira.Issue {
         @Option(name: .long, default: "", help: "Description text")
         var description: String
 
-        @Option(name: .long, default: nil, help: "JSON object of extra/custom fields merged into the create body, e.g. '{\"customfield_10211\":{\"value\":\"Technical Story\"},\"customfield_20400\":[\"16724030\"],\"customfield_10007\":\"MEM-7553\"}'")
+        @Option(name: .long, default: nil, help: "Inherit required custom fields (Epic Link, Story Type, Application/Service…) from this existing issue key. Explicit --fields-json overrides individual inherited fields.")
+        var like: String?
+
+        @Option(name: .long, default: nil, help: "JSON object of extra/custom fields merged last, e.g. '{\"customfield_10211\":{\"value\":\"Technical Story\"}}'")
         var fieldsJson: String?
 
-        @Option(name: .long, default: "", help: "Add to sprint: 'current' (active) or 'next' (first future). Empty = no sprint.")
+        @Option(name: .long, default: "", help: "Add to sprint: 'current' (active) or 'next' (first future). Empty = backlog.")
         var sprint: String
+
+        @Flag(default: false, inversion: .prefixedEnableDisable, help: "Preview the POST body without creating anything")
+        var dryRun: Bool
 
         mutating func runAsync() async throws {
             let client = try options.jiraClient()
@@ -50,8 +56,10 @@ extension SwiftyJira.Issue {
                     assignee: assignee,
                     issueType: type,
                     description: description,
+                    likeKey: like,
                     fieldsJSON: fieldsJson,
-                    sprintTarget: target
+                    sprintTarget: target,
+                    dryRun: dryRun
                 )
             }
         }
