@@ -81,4 +81,46 @@ extension Jira {
         await createWithFields(newFields, project: project, sprintTarget: sprintTarget)
     }
 
+    /// Clone variant that returns the new key (for TUI use — must not exit/print).
+    func cloneIssueReturning(
+        source key: String,
+        summary: String?,
+        description: String?,
+        assignee: String?
+    ) async -> (key: String, project: String)? {
+        guard let rawFields = await rawIssueFields(key: key) else { return nil }
+        guard let writable = await editableFieldIDs(key: key) else { return nil }
+        guard let project = (rawFields["project"] as? [String: Any])?["key"] as? String else { return nil }
+
+        let hardStrip: Set<String> = [
+            "customfield_10005",
+            "comment", "attachment", "worklog", "issuelinks", "subtasks",
+            "reporter", "assignee", "summary", "description", "issuetype", "project"
+        ]
+        var newFields: [String: Any] = [:]
+        for (id, value) in rawFields {
+            guard writable.contains(id), !hardStrip.contains(id) else { continue }
+            if let normalized = normalizeForWrite(value) { newFields[id] = normalized }
+        }
+        newFields["project"] = ["key": project]
+        newFields["issuetype"] = (rawFields["issuetype"] as? [String: Any]).flatMap { it -> [String: Any]? in
+            if let name = it["name"] as? String { return ["name": name] }
+            if let id = it["id"] as? String { return ["id": id] }
+            return nil
+        } ?? ["name": "Task"]
+        newFields["summary"] = summary ?? ((rawFields["summary"] as? String).map { "CLONE: \($0)" } ?? "Cloned from \(key)")
+        if let description = description {
+            newFields["description"] = description
+        } else if let d = rawFields["description"] as? String {
+            newFields["description"] = d
+        }
+        if let me = await currentUsername() {
+            newFields["reporter"] = ["name": me]
+            newFields["assignee"] = ["name": assignee ?? me]
+        } else if let a = assignee {
+            newFields["assignee"] = ["name": a]
+        }
+        guard let newKey = await createWithFieldsReturning(newFields, project: project, sprintTarget: .none) else { return nil }
+        return (key: newKey, project: project)
+    }
 }

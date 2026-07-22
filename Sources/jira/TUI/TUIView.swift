@@ -110,8 +110,8 @@ enum TUIView {
         }
 
         // Footer with key hints
-        let loadMore = hasMore ? "  L load more  " : ""
-        let hints = " j/k  enter  e edit  f views  / search  o open  y copy  r refresh\(loadMore)  q quit "
+        let loadMore = hasMore ? "  L more" : ""
+        let hints = " j/k  enter  e edit  N new  C clone  f views  / search  o open  y copy  r refresh\(loadMore)  q quit "
         out += invert(Terminal.pad(hints, to: width))
         return out
     }
@@ -287,7 +287,7 @@ enum TUIView {
 
     /// The kind of input a field uses in the editor.
     enum EditKind {
-        case singleLine, multiLine, transition, json
+        case singleLine, multiLine, transition, json, picker
     }
 
     /// Render the field-editor menu for the `e` action.
@@ -311,6 +311,7 @@ enum TUIView {
             case .multiLine:  marker = "¶"
             case .json:       marker = "{}"
             case .singleLine: marker = " "
+            case .picker:     marker = "▾"
             }
             let label = Terminal.pad("\(marker) \(field.label)", to: labelW)
             // Single-line preview of the current value.

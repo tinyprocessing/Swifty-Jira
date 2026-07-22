@@ -22,7 +22,8 @@ extension Jira {
         struct ContextOutput: Encodable {
             let user: UserInfo
             let project: String?
-            let activeSprint: SprintInfo?
+            let activeSprint: SprintInfo?    // kept for back-compat (first active sprint)
+            let activeSprints: [SprintInfo]  // all active sprints across all boards
             let myOpenIssues: [IssueRow]
             let hint: String
         }
@@ -39,20 +40,26 @@ extension Jira {
             user = UserInfo(displayName: me.displayName, login: me.name, email: me.emailAddress, key: me.key)
         }
 
-        // 2. Active sprint (if a project key is provided)
-        var sprintInfo: SprintInfo?
-        if let projectKey = projectKey, let board = await fetchBoard(projectKey: projectKey),
-           let boardId = board.id, let sprint = await fetchActiveSprint(boardId: boardId), let sid = sprint.id {
-            sprintInfo = SprintInfo(
-                id: sid,
-                name: sprint.name ?? "",
-                state: sprint.state ?? "",
-                startDate: sprint.startDate?.components(separatedBy: "T").first,
-                endDate: sprint.endDate?.components(separatedBy: "T").first,
-                goal: sprint.goal,
-                boardId: boardId
-            )
+        // 2. All active sprints across all scrum boards of the project.
+        var allActiveSprints: [SprintInfo] = []
+        if let projectKey = projectKey {
+            let boards = await fetchAllBoards(projectKey: projectKey)
+            var seen = Set<Int>()
+            for board in boards.filter({ $0.type == "scrum" }) {
+                guard let boardId = board.id else { continue }
+                for sprint in await fetchActiveSprints(boardId: boardId) {
+                    guard let sid = sprint.id, !seen.contains(sid) else { continue }
+                    seen.insert(sid)
+                    allActiveSprints.append(SprintInfo(
+                        id: sid, name: sprint.name ?? "", state: sprint.state ?? "",
+                        startDate: sprint.startDate?.components(separatedBy: "T").first,
+                        endDate: sprint.endDate?.components(separatedBy: "T").first,
+                        goal: sprint.goal, boardId: boardId
+                    ))
+                }
+            }
         }
+        let sprintInfo = allActiveSprints.first
 
         // 3. My open issues
         var rows: [IssueRow] = []
@@ -75,6 +82,7 @@ extension Jira {
             user: user,
             project: projectKey,
             activeSprint: sprintInfo,
+            activeSprints: allActiveSprints,
             myOpenIssues: rows,
             hint: hint
         )

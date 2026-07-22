@@ -112,8 +112,19 @@ extension Jira {
     }
 
     /// Core create: POSTs a fully-built `fields` dict, then optionally adds to a
-    /// sprint. Shared by `create` (from flags) and `clone` (from a source issue).
+    /// sprint. CLI version — prints JSON to stdout and exits on error.
     func createWithFields(_ fields: [String: Any], project: String, sprintTarget: SprintTarget) async {
+        if let key = await createWithFieldsReturning(fields, project: project, sprintTarget: sprintTarget) {
+            print("{\"status\":\"ok\",\"key\":\"\(key)\",\"url\":\"\(domain)/browse/\(key)\"}")
+        } else {
+            Foundation.exit(1)
+        }
+    }
+
+    /// Core create returning the new issue key (or nil on failure).
+    /// Used by both the CLI path and the TUI (which must not call exit/print).
+    @discardableResult
+    func createWithFieldsReturning(_ fields: [String: Any], project: String, sprintTarget: SprintTarget) async -> String? {
         do {
             let parameters: [String: Any] = ["fields": fields]
             let request = makeRequestCustom("/rest/api/2/issue", body: parameters)
@@ -122,22 +133,20 @@ extension Jira {
             guard code == 201, let created = try? JSONDecoder().decode(CreateResult.self, from: data), let newKey = created.key else {
                 let body = String(data: data, encoding: .utf8) ?? ""
                 fputs("Create failed (status \(code)): \(body)\n", stderr)
-                Foundation.exit(1)
+                return nil
             }
 
             fputs("Created \(newKey)\n", stderr)
 
             switch sprintTarget {
-            case .none:
-                break
+            case .none: break
             case .active, .next:
                 await addToSprint(newKey: newKey, project: project, target: sprintTarget)
             }
-
-            print("{\"status\":\"ok\",\"key\":\"\(newKey)\",\"url\":\"\(domain)/browse/\(newKey)\"}")
+            return newKey
         } catch {
             fputs("Error: \(error)\n", stderr)
-            Foundation.exit(1)
+            return nil
         }
     }
 

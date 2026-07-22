@@ -1,24 +1,31 @@
 import Foundation
 
 extension Jira {
-    /// Finds the first scrum board for a project.
-    func fetchBoard(projectKey: String) async -> Board? {
-        let path = "/rest/agile/1.0/board?projectKeyOrId=\(projectKey)"
+    /// Returns ALL boards for a project (paged, up to 100).
+    func fetchAllBoards(projectKey: String) async -> [Board] {
+        let path = "/rest/agile/1.0/board?projectKeyOrId=\(projectKey)&maxResults=100"
         let result: Result<BoardList, Error> = (try? await request(configuration: makeRequest(path))) ?? .failure(NSError())
-        if case .success(let list) = result {
-            return list.values?.first(where: { $0.type == "scrum" }) ?? list.values?.first
-        }
-        return nil
+        if case .success(let list) = result { return list.values ?? [] }
+        return []
     }
 
-    /// Returns the active sprint for a board, if any.
+    /// Finds the first scrum board for a project (legacy single-board path).
+    func fetchBoard(projectKey: String) async -> Board? {
+        let boards = await fetchAllBoards(projectKey: projectKey)
+        return boards.first(where: { $0.type == "scrum" }) ?? boards.first
+    }
+
+    /// Returns the active sprint for a board (first one — for single-sprint contexts).
     func fetchActiveSprint(boardId: Int) async -> Sprint? {
-        let path = "/rest/agile/1.0/board/\(boardId)/sprint?state=active"
+        return (await fetchActiveSprints(boardId: boardId)).first
+    }
+
+    /// Returns ALL active sprints for a board.
+    func fetchActiveSprints(boardId: Int) async -> [Sprint] {
+        let path = "/rest/agile/1.0/board/\(boardId)/sprint?state=active&maxResults=20"
         let result: Result<SprintList, Error> = (try? await request(configuration: makeRequest(path))) ?? .failure(NSError())
-        if case .success(let list) = result {
-            return list.values?.first
-        }
-        return nil
+        if case .success(let list) = result { return list.values ?? [] }
+        return []
     }
 
     /// Returns the first future (next) sprint for a board, if any.

@@ -91,6 +91,10 @@ final class TUIApp {
                 await reload(); drawList()
             case .char("L"):
                 await loadMore()
+            case .char("N"):
+                await createIssueInteractively()
+            case .char("C"):
+                await cloneIssueInteractively()
             default:
                 break
             }
@@ -412,7 +416,7 @@ final class TUIApp {
     }
 
     private enum FieldID {
-        case summary, description, status, priority, assignee, labels, epicLink, customJSON
+        case summary, description, status, priority, assignee, labels, epicLink, sprint, customJSON
     }
 
     private struct EditableField {
@@ -433,14 +437,16 @@ final class TUIApp {
         }
         let f = full.fields
 
+        let projectKey = f?.project?.key ?? ""
         var fields: [EditableField] = [
             EditableField(id: .summary, label: "Summary", kind: .singleLine, value: f?.summary ?? ""),
             EditableField(id: .description, label: "Description", kind: .multiLine, value: f?.description ?? ""),
             EditableField(id: .status, label: "Status", kind: .transition, value: f?.status?.name ?? ""),
             EditableField(id: .priority, label: "Priority", kind: .singleLine, value: f?.priority?.name ?? ""),
-            EditableField(id: .assignee, label: "Assignee (login)", kind: .singleLine, value: f?.assignee?.name ?? ""),
+            EditableField(id: .assignee, label: "Assignee  [Enter → picker]", kind: .picker, value: f?.assignee?.displayName ?? ""),
             EditableField(id: .labels, label: "Labels (comma-separated)", kind: .singleLine, value: labelsString(f?.labels)),
-            EditableField(id: .epicLink, label: "Epic Link (issue key)", kind: .singleLine, value: ""),
+            EditableField(id: .epicLink, label: "Epic Link  [Enter → picker]", kind: .picker, value: ""),
+            EditableField(id: .sprint, label: "Sprint  [Enter → picker]", kind: .picker, value: ""),
             EditableField(id: .customJSON, label: "Custom field (raw JSON object)", kind: .json, value: ""),
         ]
 
@@ -470,6 +476,12 @@ final class TUIApp {
                     }
                     note = moved.map { $0 ? "Status changed." : "Status change failed." }
                     draw()
+                case .picker:
+                    if let result = await runFieldPicker(fieldId: fields[sel].id, issueKey: key, projectKey: projectKey) {
+                        fields[sel].value = result.display
+                        note = await savePickerField(fields[sel].id, pickedValue: result.writeValue, key: key)
+                    }
+                    draw()
                 case .singleLine, .json:
                     if let edited = editText(title: "\(key) · \(field.label)", initial: field.value, multiline: false) {
                         fields[sel].value = edited
@@ -492,6 +504,205 @@ final class TUIApp {
         await reload()
         message = nil
         drawList()
+    }
+
+    // MARK: - Create / Clone in TUI
+
+    /// `N` — step-by-step new issue form inside the TUI.
+    private func createIssueInteractively() async {
+        let inferredProject = allIssues.first?.fields?.project?.key ?? ""
+
+        guard let project = editText(title: "New Issue · Project key (e.g. MEM)", initial: inferredProject, multiline: false),
+              !project.trimmingCharacters(in: .whitespaces).isEmpty else { drawList(); return }
+
+        let typeItems = ["Story", "Task", "Bug", "Sub-task"].map {
+            TUIPicker.Item(label: $0, sublabel: "", value: $0)
+        }
+        let typePicker = TUIPicker(title: "New Issue · Type", hint: "Enter to pick · Esc cancel", searchPrompt: "filter:", searchOnEnter: false)
+        guard let issueType = await typePicker.run(term: term, initial: typeItems) else { drawList(); return }
+
+        guard let summary = editText(title: "New Issue · Summary", initial: "", multiline: false),
+              !summary.trimmingCharacters(in: .whitespaces).isEmpty else { drawList(); return }
+
+        let description = editText(title: "New Issue · Description (Ctrl-S save · Esc skip)", initial: "", multiline: true) ?? ""
+
+        // Assignee — optional
+        var assignee = ""
+        if let result = await runFieldPicker(fieldId: .assignee, issueKey: "", projectKey: project) {
+            assignee = result.writeValue
+        }
+
+        // Sprint — optional
+        var pickedSprintId: Int? = nil
+        if let result = await runFieldPicker(fieldId: .sprint, issueKey: "", projectKey: project) {
+            pickedSprintId = Int(result.writeValue)
+        }
+
+        message = "Creating…"; drawList()
+        var fields: [String: Any] = [
+            "summary": summary,
+            "issuetype": ["name": issueType],
+            "project": ["key": project],
+            "description": description
+        ]
+        if !assignee.isEmpty { fields["assignee"] = ["name": assignee] }
+        if let me = await client.currentUsername() { fields["reporter"] = ["name": me] }
+
+        if let newKey = await client.createWithFieldsReturning(fields, project: project, sprintTarget: .none) {
+            if let sid = pickedSprintId {
+                _ = await client.addIssueToSprint(issueKey: newKey, sprintId: sid)
+            }
+            message = "Created \(newKey) ✓"
+        } else {
+            message = "Create failed — check stderr for details."
+        }
+        await finishCreate()
+    }
+
+    /// `C` — clone the selected issue with a new summary/sprint.
+    private func cloneIssueInteractively() async {
+        guard let sourceKey = selectedKey else {
+            message = "No issue selected."; drawList(); return
+        }
+
+        guard let summary = editText(title: "Clone \(sourceKey) · New Summary (Esc cancel)", initial: "", multiline: false),
+              !summary.trimmingCharacters(in: .whitespaces).isEmpty else { drawList(); return }
+
+        let description = editText(title: "Clone \(sourceKey) · Description (Ctrl-S save · Esc copy from source)", initial: "", multiline: true)
+
+        // Sprint — optional
+        var pickedSprintId: Int? = nil
+        let projectKey = allIssues.first?.fields?.project?.key ?? ""
+        if let result = await runFieldPicker(fieldId: .sprint, issueKey: sourceKey, projectKey: projectKey) {
+            pickedSprintId = Int(result.writeValue)
+        }
+
+        message = "Cloning \(sourceKey)…"; drawList()
+        if let result = await client.cloneIssueReturning(
+            source: sourceKey, summary: summary, description: description, assignee: nil
+        ) {
+            if let sid = pickedSprintId {
+                _ = await client.addIssueToSprint(issueKey: result.key, sprintId: sid)
+            }
+            message = "Cloned → \(result.key) ✓"
+        } else {
+            message = "Clone failed — check stderr for details."
+        }
+        await finishCreate()
+    }
+
+    private func finishCreate() async {
+        drawList()
+        // Small pause so user sees the success/fail message before list refreshes.
+        try? await Task.sleep(nanoseconds: 1_200_000_000)
+        message = "Refreshing…"; drawList()
+        await reload()
+        message = nil; drawList()
+    }
+
+    // MARK: - Pickers
+
+    struct PickerResult {
+        let display: String   // shown in edit menu value column
+        let writeValue: String // what gets saved (login / epic key / sprint id)
+    }
+
+    /// Launch the right picker for the given field. Returns a PickerResult or nil if cancelled.
+    private func runFieldPicker(fieldId: FieldID, issueKey: String, projectKey: String) async -> PickerResult? {
+        switch fieldId {
+        case .assignee:
+            return await runUserPicker()
+        case .epicLink:
+            return await runEpicPicker(projectKey: projectKey)
+        case .sprint:
+            return await runSprintPicker(projectKey: projectKey, issueKey: issueKey)
+        default:
+            return nil
+        }
+    }
+
+    private func runUserPicker() async -> PickerResult? {
+        let picker = TUIPicker(
+            title: "Assignee Search",
+            hint: "Enter to search · Esc cancel",
+            searchPrompt: "name:",
+            searchOnEnter: true
+        )
+        // Start with a placeholder so user sees the prompt immediately, no hang.
+        let placeholder = [TUIPicker.Item(label: "Type a name above and press Enter to search", sublabel: "", value: "")]
+        var lastResults: [TUIPicker.Item] = []
+        let value = await picker.run(term: term, initial: placeholder) { query in
+            guard query.count >= 2 else {
+                return [TUIPicker.Item(label: "Type at least 2 characters, then Enter", sublabel: "", value: "")]
+            }
+            let users = await self.client.searchUsers(query: query)
+            let items = users.compactMap { u -> TUIPicker.Item? in
+                guard let name = u.name, let display = u.displayName else { return nil }
+                let email = u.emailAddress ?? ""
+                return TUIPicker.Item(label: display, sublabel: "\(name) · \(email)", value: name)
+            }
+            lastResults = items
+            return items.isEmpty ? [TUIPicker.Item(label: "No results for \"\(query)\"", sublabel: "", value: "")] : items
+        }
+        // Ignore placeholder/hint items (empty value).
+        guard let login = value, !login.isEmpty else { return nil }
+        let display = lastResults.first(where: { $0.value == login })?.label ?? login
+        return PickerResult(display: display, writeValue: login)
+    }
+
+    private func runEpicPicker(projectKey: String) async -> PickerResult? {
+        var items: [TUIPicker.Item] = []
+        // Show loading placeholder while we fetch.
+        let picker = TUIPicker(
+            title: "Pick Epic",
+            hint: "type to filter",
+            searchPrompt: "filter:",
+            searchOnEnter: false
+        )
+        // Pre-fetch epics (may take a moment).
+        let loadFrame = TUIView.renderList(title: "Loading epics for \(projectKey)…",
+            issues: [], selected: 0, scrollOffset: 0, filterInput: nil, message: "Fetching…", countLabel: nil)
+        FileHandle.standardOutput.write(loadFrame.data(using: .utf8)!)
+        let epics = await client.fetchPickerEpics(projectKey: projectKey)
+        items = epics.map { TUIPicker.Item(label: "\($0.key) — \($0.summary)", sublabel: $0.key, value: $0.key) }
+        guard let epicKey = await picker.run(term: term, initial: items) else { return nil }
+        return PickerResult(display: epicKey, writeValue: epicKey)
+    }
+
+    private func runSprintPicker(projectKey: String, issueKey: String) async -> PickerResult? {
+        let loadFrame = TUIView.renderList(title: "Loading sprints for \(projectKey)…",
+            issues: [], selected: 0, scrollOffset: 0, filterInput: nil, message: "Fetching…", countLabel: nil)
+        FileHandle.standardOutput.write(loadFrame.data(using: .utf8)!)
+        let sprints = await client.fetchPickerSprints(projectKey: projectKey)
+        guard !sprints.isEmpty else {
+            message = "No active/future sprints found for \(projectKey)."; drawList(); return nil
+        }
+        let items = sprints.map { s in
+            TUIPicker.Item(label: s.name, sublabel: s.state, value: "\(s.id)")
+        }
+        let picker = TUIPicker(title: "Pick Sprint", hint: "type to filter", searchPrompt: "filter:", searchOnEnter: false)
+        guard let sprintIdStr = await picker.run(term: term, initial: items),
+              let sprintId = Int(sprintIdStr) else { return nil }
+        let sprintName = sprints.first(where: { $0.id == sprintId })?.name ?? sprintIdStr
+        return PickerResult(display: sprintName, writeValue: sprintIdStr)
+    }
+
+    /// Save a picker-selected value. Sprint uses agile API; others use field update.
+    private func savePickerField(_ fieldId: FieldID, pickedValue: String, key: String) async -> String {
+        switch fieldId {
+        case .assignee:
+            let ok = await client.updateIssueFields(key: key, fields: ["assignee": ["name": pickedValue]])
+            return ok ? "Assignee → \(pickedValue)" : "Failed to update assignee."
+        case .epicLink:
+            let ok = await client.updateIssueFields(key: key, fields: [TUIApp.epicFieldId: pickedValue])
+            return ok ? "Epic Link → \(pickedValue)" : "Failed to update Epic Link."
+        case .sprint:
+            guard let sprintId = Int(pickedValue) else { return "Invalid sprint id." }
+            let ok = await client.addIssueToSprint(issueKey: key, sprintId: sprintId)
+            return ok ? "Moved to sprint \(sprintId)." : "Failed to move to sprint (check permissions)."
+        default:
+            return "Picker not implemented for this field."
+        }
     }
 
     /// Saves one field. Returns a human-readable status note.
@@ -526,6 +737,8 @@ final class TUIApp {
             payload = dict
         case .status:
             return "Use enter on Status to change it."
+        case .sprint:
+            return "Use enter on Sprint to open the picker."
         }
 
         let ok = await client.updateIssueFields(key: key, fields: payload)
